@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { demoMyRoster, demoOpponentRoster } from '../domain/demoData'
 import type { GamePhase, GameSession, UnitState } from '../domain/combatState'
 import { sessionId, type UnitId } from '../domain/ids'
+import type { Roster } from '../domain/roster'
 import { ensureDemoData } from '../persistence/bootstrap'
 import { db } from '../persistence/db'
 
@@ -10,8 +11,8 @@ if (initialTarget === undefined) throw new Error('Demo opponent roster is empty'
 
 const now = () => new Date().toISOString()
 
-const initialUnitStates = (): Readonly<Record<string, UnitState>> => Object.fromEntries(
-  [...demoMyRoster.units, ...demoOpponentRoster.units].map((unit) => [
+const rosterUnitStates = (myRoster: Roster, opponentRoster: Roster): Readonly<Record<string, UnitState>> => Object.fromEntries(
+  [...myRoster.units, ...opponentRoster.units].map((unit) => [
     unit.id,
     {
       unitId: unit.id,
@@ -30,7 +31,7 @@ export const createDemoSession = (): GameSession => ({
   commandPoints: 2,
   selectedTargetId: initialTarget.id,
   selectedAttackerIds: demoMyRoster.units.slice(0, 3).map(({ id }) => id),
-  units: initialUnitStates(),
+  units: rosterUnitStates(demoMyRoster, demoOpponentRoster),
   updatedAt: now(),
 })
 
@@ -45,6 +46,7 @@ type GameStore = Readonly<{
   setPhase: (phase: GamePhase) => void
   resolveAttack: (attackerId: UnitId, targetId: UnitId, woundsRemaining: number) => void
   nextTurn: () => void
+  startGame: (myRoster: Roster, opponentRoster: Roster) => void
   resetDemo: () => void
 }>
 
@@ -119,6 +121,21 @@ export const useGameStore = create<GameStore>((set, get) => {
         { ...unit, hasActivated: false },
       ])),
     })),
+    startGame: (myRoster, opponentRoster) => {
+      const firstTarget = opponentRoster.units[0]
+      if (firstTarget === undefined) return
+      const session: GameSession = {
+        ...createDemoSession(),
+        myRosterId: myRoster.id,
+        opponentRosterId: opponentRoster.id,
+        selectedTargetId: firstTarget.id,
+        selectedAttackerIds: myRoster.units.filter(({ weapons }) => weapons.length > 0).slice(0, 6).map(({ id }) => id),
+        units: rosterUnitStates(myRoster, opponentRoster),
+        updatedAt: now(),
+      }
+      set({ session, persistenceError: null })
+      persist(session)
+    },
     resetDemo: () => {
       const session = createDemoSession()
       set({ session, persistenceError: null })

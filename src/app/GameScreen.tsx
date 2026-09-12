@@ -9,6 +9,7 @@ import { targetProfile } from '../domain/profiles'
 import { confidencePresets, probabilityWord } from '../domain/probability'
 import { useGameStore } from '../stores/game'
 import { setPreference, usePreferences } from '../stores/preferences'
+import { useRosterStore } from '../stores/rosters'
 import { analyseCommitment } from '../workers/client'
 
 type AnalysisState =
@@ -29,13 +30,16 @@ export function GameScreen() {
   const [analysis, setAnalysis] = useState<AnalysisState>({ kind: 'idle' })
   const [resolving, setResolving] = useState(false)
 
-  const target = demoOpponentRoster.units.find(({ id }) => id === session.selectedTargetId)
+  const rosters = useRosterStore((state) => state.rosters)
+  const myRoster = rosters.find(({ id }) => id === session.myRosterId) ?? demoMyRoster
+  const opponentRoster = rosters.find(({ id }) => id === session.opponentRosterId) ?? demoOpponentRoster
+  const target = opponentRoster.units.find(({ id }) => id === session.selectedTargetId)
   if (target === undefined) return <p role="alert">The selected target is missing from this roster.</p>
   const targetWounds = session.units[target.id]?.woundsRemaining ?? target.models * target.woundsPerModel
-  const availableAttackers = demoMyRoster.units.filter(({ id }) => !session.units[id]?.hasActivated)
+  const availableAttackers = myRoster.units.filter(({ id }) => !session.units[id]?.hasActivated)
 
   const calculate = async (game: GameSession = session) => {
-    const selectedTarget = demoOpponentRoster.units.find(({ id }) => id === game.selectedTargetId)
+    const selectedTarget = opponentRoster.units.find(({ id }) => id === game.selectedTargetId)
     if (selectedTarget === undefined) {
       setAnalysis({ kind: 'failure', message: 'The selected target is no longer available.' })
       return
@@ -49,7 +53,7 @@ export function GameScreen() {
         kind: 'optimise-commitment',
         target: targetProfile(selectedTarget),
         targetWoundsRemaining: wounds,
-        attackers: demoMyRoster.units,
+        attackers: myRoster.units,
         selectedAttackerIds: game.selectedAttackerIds,
         requiredConfidence: confidence / 100,
         commandPoints: game.commandPoints,
@@ -96,7 +100,7 @@ export function GameScreen() {
         <fieldset className="field-group">
           <legend className="eyebrow">Target</legend>
           <div className="target-list">
-            {demoOpponentRoster.units.map((unit) => {
+            {opponentRoster.units.map((unit) => {
               const wounds = session.units[unit.id]?.woundsRemaining ?? unit.models * unit.woundsPerModel
               return (
                 <label className="target-card selectable" key={unit.id}>

@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect } from 'react'
 import { GameScreen } from './GameScreen'
+import { PrepScreen } from './PrepScreen'
 import { useRoute } from './router'
 import { useGameStore } from '../stores/game'
 import { applyTheme, setPreference, usePreferences, type Theme } from '../stores/preferences'
+import { useRosterStore } from '../stores/rosters'
 
 const themeOptions: ReadonlyArray<Readonly<{ value: Theme; label: string }>> = [
   { value: 'system', label: 'System' },
@@ -14,10 +16,11 @@ export function App() {
   const route = useRoute()
   const { theme } = usePreferences()
   const hydrate = useGameStore((state) => state.hydrate)
+  const hydrateRosters = useRosterStore((state) => state.hydrate)
 
   useEffect(() => {
-    void hydrate()
-  }, [hydrate])
+    void Promise.all([hydrate(), hydrateRosters()])
+  }, [hydrate, hydrateRosters])
 
   useLayoutEffect(() => {
     applyTheme(theme)
@@ -51,13 +54,7 @@ export function App() {
         </fieldset>
       </div>
 
-      {route === 'game' ? <GameScreen /> : route === 'prep' ? (
-        <section className="route-placeholder">
-          <p className="eyebrow">Prep</p>
-          <h1>Know the matchup before the first roll.</h1>
-          <p>Roster import and matchup analysis arrive in the next deployment.</p>
-        </section>
-      ) : (
+      {route === 'game' ? <GameScreen /> : route === 'prep' ? <PrepScreen /> : (
         <section className="route-placeholder">
           <p className="eyebrow">Sandbox</p>
           <h1>Test any matchup.</h1>
