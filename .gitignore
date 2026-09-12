@@ -1,0 +1,22 @@
+# studio-facing agent docs, never shipped
+AGENTS.md
+CLAUDE.md
+BRIEF*.md
+LOG.md
+DECISIONS.md
+RESUME.md
+COSTS.md
+reports/
+briefs/
+.optmem/
+.claude/
+.codex/
+.agents/
+.superpowers/
+# build
+node_modules/
+dist/
+dev-dist/
+test-results/
+playwright-report/
+.DS_Store
