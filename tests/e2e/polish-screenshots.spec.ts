@@ -2,7 +2,7 @@ import { test } from '@playwright/test'
 
 // Phone-width evidence for the polish lane: SHOT_PREFIX=before|after (default after).
 const prefix = process.env.SHOT_PREFIX ?? 'after'
-const dir = 'reports/2026-09-13-polish'
+const dir = 'reports/2026-09-13-polish/assets'
 
 for (const scheme of ['light', 'dark'] as const) {
   test(`section 41 screenshots, ${scheme}`, async ({ page }) => {
