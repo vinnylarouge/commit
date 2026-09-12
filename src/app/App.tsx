@@ -1,19 +1,28 @@
-import { useState } from 'react'
-import {
-  confidencePresets,
-  probabilityWord,
-  type Confidence,
-} from '../domain/probability'
-import {
-  getVerticalSliceRecommendation,
-  type Recommendation,
-} from '../engine/verticalSlice'
+import { useLayoutEffect, useState } from 'react'
+import { RecommendationCard } from '../components/RecommendationCard'
+import { confidencePresets, probabilityWord } from '../domain/probability'
+import { getVerticalSliceRecommendation, type Recommendation } from '../engine/verticalSlice'
+import { applyTheme, setPreference, usePreferences, type Theme } from '../stores/preferences'
 
 const attackers = ['Eradicators', 'Ballistus', 'Hellblasters'] as const
+const themeOptions: ReadonlyArray<Readonly<{ value: Theme; label: string }>> = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
 
 export function App() {
-  const [confidence, setConfidence] = useState<Confidence>(80)
+  const { theme, confidence } = usePreferences()
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
+
+  // Re-apply on OS scheme changes too, so the browser toolbar colour keeps matching the page.
+  useLayoutEffect(() => {
+    applyTheme(theme)
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const reapply = () => applyTheme(theme)
+    media.addEventListener('change', reapply)
+    return () => media.removeEventListener('change', reapply)
+  }, [theme])
 
   const calculate = () => {
     window.location.hash = '/game'
@@ -24,8 +33,25 @@ export function App() {
     <main className="app-shell">
       <header className="topbar">
         <a className="wordmark" href="#/game" aria-label="Commit home">COMMIT</a>
-        <button className="menu-button" type="button" aria-label="More options">•••</button>
+        <button className="menu-button" type="button" popoverTarget="settings" aria-label="Settings">•••</button>
       </header>
+
+      <div id="settings" className="sheet" popover="auto">
+        <fieldset className="field-group">
+          <legend className="eyebrow">Appearance</legend>
+          {themeOptions.map((option) => (
+            <label className="choice-line" key={option.value}>
+              <input
+                type="radio"
+                name="theme"
+                checked={theme === option.value}
+                onChange={() => setPreference('theme', option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
 
       <section className="brief" aria-label="Commitment setup">
         <div className="field-group">
@@ -46,20 +72,18 @@ export function App() {
 
         <fieldset className="field-group">
           <legend className="eyebrow">Confidence</legend>
-          <div className="confidence-grid">
-            {confidencePresets.map((option) => (
-              <label className="confidence-choice" key={option.value}>
-                <input
-                  type="radio"
-                  name="confidence"
-                  checked={confidence === option.value}
-                  onChange={() => setConfidence(option.value)}
-                />
-                <span>{option.label}</span>
-                <strong>{option.value}%, {probabilityWord(option.value)}</strong>
-              </label>
-            ))}
-          </div>
+          {confidencePresets.map((option) => (
+            <label className="choice-line" key={option.value}>
+              <input
+                type="radio"
+                name="confidence"
+                checked={confidence === option.value}
+                onChange={() => setPreference('confidence', option.value)}
+              />
+              <span>{option.label}</span>
+              <strong className="figure">{option.value}%, {probabilityWord(option.value)}</strong>
+            </label>
+          ))}
         </fieldset>
 
         <fieldset className="field-group">
@@ -79,27 +103,7 @@ export function App() {
         </button>
       </section>
 
-      {recommendation === null ? null : (
-        <section className="result" aria-live="polite">
-          <p className="eyebrow">Recommended plan</p>
-          <h1>{recommendation.first} first</h1>
-          <p className="probability">
-            <strong>{recommendation.firstKillChance}%, {probabilityWord(recommendation.firstKillChance)}</strong>
-            {' '}kill chance
-          </p>
-          <div className="continuation">
-            <span>If they survive</span>
-            <strong>→ {recommendation.continuation}</strong>
-            <strong>→ {recommendation.totalKillChance}% total</strong>
-          </div>
-          <p className="resource-advice">{recommendation.resourceAdvice}</p>
-          <button className="secondary-action" type="button">Resolve attack</button>
-          <details>
-            <summary>Details</summary>
-            <p>Hard-coded Milestone 0 example. Exact combat arithmetic arrives in Milestone 1.</p>
-          </details>
-        </section>
-      )}
+      {recommendation === null ? null : <RecommendationCard recommendation={recommendation} />}
 
       <nav className="bottom-nav" aria-label="Primary navigation">
         <a href="#/prep">Prep</a>

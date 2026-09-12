@@ -1,0 +1,34 @@
+/* Design tokens. Light is the default; dark follows the OS unless data-theme overrides it.
+   light-dark() plus color-scheme means native controls, scrollbars and the disclosure marker
+   follow the theme with no per-theme duplication. */
+:root {
+  color-scheme: light dark;
+
+  --bg: light-dark(#e5e2d9, #080907);
+  --surface: light-dark(#f7f4ec, #0f100d);
+  --surface-raised: light-dark(#fffdf7, #1a1c16);
+  --surface-selected: light-dark(#eef5cc, #273116);
+  --fg: light-dark(#171915, #f1f0ea);
+  --fg-muted: light-dark(#5d5f58, #a6a99c);
+  --line: light-dark(#cfccc2, #262822);
+  --line-strong: light-dark(#bbb8ae, #3a3d33);
+
+  --accent: #cde94a;
+  --on-accent: #161713;
+  --accent-shadow: light-dark(#829324, #7a8c22);
+  --accent-ink: light-dark(#314000, #d7ff54);
+  --focus: light-dark(#536711, #d7ff54);
+
+  /* The recommendation panel is the instrument face: always dark, both themes. */
+  --panel: #161713;
+  --panel-raised: #252720;
+  --panel-fg: #f8f7f1;
+  --panel-fg-muted: #b9bdb0;
+  --panel-accent: #d7ff54;
+
+  --radius: 4px;
+  --tap: 44px;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }

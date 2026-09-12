@@ -1,0 +1,133 @@
+@import './tokens.css';
+
+:root {
+  color: var(--fg);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100dvh; background: var(--surface); }
+p, summary { text-wrap: pretty; }
+h1 { text-wrap: balance; }
+button, input { font: inherit; }
+button, a, label, summary { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.figure { font-variant-numeric: tabular-nums; }
+
+.app-shell {
+  width: min(100%, 480px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) 20px calc(92px + env(safe-area-inset-bottom));
+  background: var(--surface);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  border-bottom: 1px solid var(--line);
+}
+.wordmark { color: inherit; font-size: 1.05rem; font-weight: 900; letter-spacing: .13em; text-decoration: none; }
+.menu-button { width: var(--tap); height: var(--tap); border: 0; border-radius: var(--radius); background: transparent; color: var(--fg-muted); font-weight: 800; letter-spacing: .12em; cursor: pointer; }
+
+/* Settings sheet: native popover, light-dismiss and Escape for free. */
+.sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(100%, 480px);
+  margin: 0 auto;
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  color: var(--fg);
+  background: var(--surface-raised);
+  overscroll-behavior: contain;
+}
+.sheet::backdrop { background: rgb(0 0 0 / 40%); }
+
+.brief { display: grid; gap: 24px; padding: 24px 0 28px; }
+.field-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.eyebrow { margin: 0 0 10px; color: var(--fg-muted); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.target-card { display: grid; gap: 5px; padding: 15px 16px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface-raised); }
+.target-card strong { font-size: 1rem; text-transform: uppercase; }
+.target-card span { color: var(--fg-muted); font-size: .9rem; }
+.choice-line { display: flex; align-items: center; min-height: var(--tap); gap: 11px; font-weight: 700; cursor: pointer; }
+.choice-line .figure { margin-left: auto; color: var(--fg-muted); font-weight: 600; }
+.choice-line:has(input:checked) .figure { color: var(--fg); }
+input { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--accent-ink); }
+.attacker-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+
+.primary-action, .secondary-action { min-height: 52px; border: 0; border-radius: var(--radius); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.primary-action { color: var(--on-accent); background: var(--accent); box-shadow: 0 3px 0 var(--accent-shadow); transition: translate 80ms ease-out, box-shadow 80ms ease-out; }
+.primary-action:active { translate: 0 2px; box-shadow: 0 1px 0 var(--accent-shadow); }
+.secondary-action { width: 100%; margin-top: auto; color: var(--panel); background: var(--panel-fg); transition: scale 120ms ease-out; }
+.secondary-action:active { scale: .96; }
+
+/* The answer: full-bleed, fills the screen above the nav, always the dark instrument face.
+   Read at the top, act at the bottom: the action and the disclosure sit in thumb reach. */
+.result {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 68px - env(safe-area-inset-bottom));
+  margin: 0 -20px;
+  padding: 28px 20px 24px;
+  color: var(--panel-fg);
+  background: var(--panel);
+}
+.result :focus-visible { outline-color: var(--panel-accent); }
+.result .eyebrow { color: var(--panel-fg-muted); }
+.result h1 { margin: 0; color: var(--panel-accent); font-size: clamp(1.7rem, 8vw, 2.2rem); line-height: 1; text-transform: uppercase; }
+.probability { margin: 12px 0 24px; color: var(--panel-fg-muted); }
+.probability strong { color: var(--panel-fg); font-size: 1.55rem; }
+.continuation { display: grid; gap: 7px; padding: 16px; border-left: 3px solid var(--panel-accent); background: var(--panel-raised); }
+.continuation span { color: var(--panel-fg-muted); font-size: .85rem; }
+.resource-advice { margin: 22px 0; color: var(--panel-accent); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+details { margin-top: 18px; color: var(--panel-fg-muted); }
+summary { min-height: var(--tap); padding: 12px 0; color: var(--panel-fg); font-weight: 700; cursor: pointer; }
+details p { margin: 4px 0; font-size: .9rem; line-height: 1.5; }
+
+/* Arrival is witnessed: each block of the answer lands in turn, transform and opacity only. */
+.result > * { animation: arrive 260ms cubic-bezier(.2, 0, 0, 1) both; }
+.result > :nth-child(2) { animation-delay: 50ms; }
+.result > :nth-child(3) { animation-delay: 100ms; }
+.result > :nth-child(4) { animation-delay: 150ms; }
+.result > :nth-child(n + 5) { animation-delay: 200ms; }
+@keyframes arrive { from { opacity: 0; translate: 0 8px; } }
+
+.bottom-nav {
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  min-height: calc(68px + env(safe-area-inset-bottom));
+  padding: 0 max(16px, calc((100vw - 480px) / 2)) env(safe-area-inset-bottom);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+.bottom-nav a { display: grid; place-items: center; min-height: 52px; color: var(--fg-muted); font-size: .78rem; font-weight: 750; text-decoration: none; }
+.bottom-nav a.active { color: var(--fg); box-shadow: inset 0 3px var(--accent-ink); }
+
+@media (hover: hover) {
+  .bottom-nav a:hover, .menu-button:hover { color: var(--fg); }
+}
+
+@media (min-width: 700px) {
+  body { background: var(--bg); }
+  .app-shell { margin-block: 24px; min-height: calc(100dvh - 48px); border-radius: 8px; box-shadow: 0 0 48px rgb(0 0 0 / 12%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+}
