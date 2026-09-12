@@ -1,46 +1,8 @@
-import type { DiceExpr } from '../dice/dice'
-import type { RerollRule } from '../dice/d6Check'
 import type { PMF } from '../distributions/pmf'
+import type { TargetProfile, WeaponProfile } from '../../domain/profiles'
 
-export type Brand<T, Name extends string> = T & Readonly<{ __brand: Name }>
-export type UnitId = Brand<string, 'UnitId'>
-export type WeaponId = Brand<string, 'WeaponId'>
-
-export const unitId = (value: string): UnitId => value as UnitId
-export const weaponId = (value: string): WeaponId => value as WeaponId
-
-export type AttackRules = Readonly<{
-  hitModifier?: number
-  woundModifier?: number
-  rerollHits?: RerollRule
-  rerollWounds?: RerollRule
-  lethalHits?: boolean
-  sustainedHits?: number
-  devastatingWounds?: boolean
-}>
-
-export type WeaponProfile = Readonly<{
-  id: WeaponId
-  name: string
-  attacks: DiceExpr
-  skill: number
-  strength: number
-  armourPenetration: number
-  damage: DiceExpr
-  rules?: AttackRules
-}>
-
-export type TargetProfile = Readonly<{
-  id: UnitId
-  name: string
-  models: number
-  toughness: number
-  armourSave: number
-  invulnerableSave: number | null
-  woundsPerModel: number
-  feelNoPain: number | null
-  benefitOfCover: boolean
-}>
+export { unitId, weaponId } from '../../domain/ids'
+export type { TargetProfile, WeaponProfile } from '../../domain/profiles'
 
 export type CombatRequest = Readonly<{
   weapon: WeaponProfile

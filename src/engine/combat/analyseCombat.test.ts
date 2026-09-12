@@ -11,6 +11,7 @@ const baseRequest = (): CombatRequest => ({
     strength: 6,
     armourPenetration: -1,
     damage: { kind: 'constant', value: 2 },
+    keywords: [],
   },
   target: {
     id: unitId('golden-target'),

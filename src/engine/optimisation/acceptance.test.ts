@@ -154,6 +154,7 @@ describe('SPEC section 40 acceptance scenarios', () => {
         strength: 6,
         armourPenetration: -1,
         damage: { kind: 'constant', value: 2 },
+        keywords: [],
       },
       target: {
         id: unitId('trace-target'),

@@ -24,6 +24,41 @@ const defaultWeights: OptimisationWeights = {
   expectedOverkill: 0.01,
 }
 
+type SearchCandidate = Readonly<{
+  successProbability: number
+  expectedCost: ExpectedCost
+}>
+
+const searchScore = (candidate: SearchCandidate): number =>
+  candidate.expectedCost.activations
+  + candidate.expectedCost.commandPoints
+  + candidate.expectedCost.scarceResourceUses
+  + candidate.expectedCost.expectedOverkill * 0.01
+
+const uniqueCandidates = <Candidate>(candidates: ReadonlyArray<Candidate>): ReadonlyArray<Candidate> =>
+  [...new Set(candidates)]
+
+const compactByProbability = <Candidate extends SearchCandidate>(
+  candidates: ReadonlyArray<Candidate>,
+  resolution: number | undefined,
+): ReadonlyArray<Candidate> => {
+  if (resolution === undefined) return candidates
+  const buckets = new Map<number, Array<Candidate>>()
+  for (const candidate of candidates) {
+    const bucket = Math.floor((candidate.successProbability + EPSILON) / resolution)
+    const existing = buckets.get(bucket) ?? []
+    existing.push(candidate)
+    buckets.set(bucket, existing)
+  }
+  return [...buckets.values()].flatMap((bucket) => uniqueCandidates([
+    [...bucket].sort((left, right) => right.successProbability - left.successProbability)[0],
+    [...bucket].sort((left, right) => searchScore(left) - searchScore(right))[0],
+    [...bucket].sort((left, right) => left.expectedCost.activations - right.expectedCost.activations)[0],
+    [...bucket].sort((left, right) => left.expectedCost.commandPoints - right.expectedCost.commandPoints)[0],
+    [...bucket].sort((left, right) => left.expectedCost.scarceResourceUses - right.expectedCost.scarceResourceUses)[0],
+  ].filter((candidate): candidate is Candidate => candidate !== undefined)))
+}
+
 const immediateCost = (cost: ResourceCost): ExpectedCost => ({
   activations: cost.activations,
   commandPoints: cost.commandPoints,
@@ -112,9 +147,13 @@ const partialDominates = <State extends string | number>(
 
 const prunePartials = <State extends string | number>(
   candidates: ReadonlyArray<PartialBranch<State>>,
-): ReadonlyArray<PartialBranch<State>> => candidates.filter((candidate, index) =>
-  !candidates.some((other, otherIndex) => otherIndex !== index && partialDominates(other, candidate)),
-)
+  probabilityResolution: number | undefined,
+): ReadonlyArray<PartialBranch<State>> => {
+  const compacted = compactByProbability(candidates, probabilityResolution)
+  return compacted.filter((candidate, index) =>
+    !compacted.some((other, otherIndex) => otherIndex !== index && partialDominates(other, candidate)),
+  )
+}
 
 const removeConsumedActions = <State extends string | number>(
   actions: ReadonlyArray<CommitmentAction<State>>,
@@ -137,14 +176,23 @@ export const optimiseCommitment = <State extends string | number>(
     requiredConfidence,
     commandPointsAvailable = Number.POSITIVE_INFINITY,
     maxDepth = 3,
+    probabilityResolution,
   } = request
 
   if (!Number.isFinite(requiredConfidence) || requiredConfidence < 0 || requiredConfidence > 1) {
     throw new RangeError('Required confidence must be between 0 and 1')
   }
-  if (actions.length > 6) throw new RangeError('The optimiser accepts at most six candidate attackers')
+  if (new Set(actions.map(({ attackerId }) => attackerId)).size > 6) {
+    throw new RangeError('The optimiser accepts at most six candidate attackers')
+  }
   if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 3) {
     throw new RangeError('Maximum policy depth must be an integer from one to three')
+  }
+  if (
+    probabilityResolution !== undefined
+    && (!Number.isFinite(probabilityResolution) || probabilityResolution <= 0 || probabilityResolution > 1)
+  ) {
+    throw new RangeError('Probability resolution must be greater than zero and at most one')
   }
   if (
     commandPointsAvailable < 0
@@ -222,7 +270,7 @@ export const optimiseCommitment = <State extends string | number>(
               })
             }
           }
-          partials = prunePartials(expanded)
+          partials = prunePartials(expanded, probabilityResolution)
         }
 
         for (const partial of partials) {
@@ -244,7 +292,7 @@ export const optimiseCommitment = <State extends string | number>(
       }
     }
 
-    const frontier = paretoPrune(candidates)
+    const frontier = paretoPrune(compactByProbability(candidates, probabilityResolution))
     memo.set(memoKey, frontier)
     return frontier
   }

@@ -15,6 +15,7 @@ const weapon = (overrides: Partial<WeaponProfile> = {}): WeaponProfile => ({
   armourPenetration: -1,
   damage: { kind: 'constant', value: 2 },
   ...overrides,
+  keywords: overrides.keywords ?? [],
 })
 
 const target = (overrides: Partial<TargetProfile> = {}): TargetProfile => ({

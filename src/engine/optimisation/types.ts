@@ -67,6 +67,7 @@ export type OptimisationRequest<State extends string | number> = Readonly<{
   requiredConfidence: number
   commandPointsAvailable?: number
   maxDepth?: number
+  probabilityResolution?: number
   weights?: Partial<OptimisationWeights>
 }>
 

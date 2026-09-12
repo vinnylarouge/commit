@@ -12,8 +12,8 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.screenshot({ path: `${dir}/${prefix}-${scheme}-setup.png` })
 
     await page.getByRole('button', { name: 'Find best commitment' }).click()
-    const heading = page.getByRole('heading', { name: 'Eradicators first' })
-    await heading.waitFor()
+    const heading = page.locator('.result h1')
+    await heading.waitFor({ timeout: 15_000 })
     await heading.evaluate((el) => el.closest('section')?.scrollIntoView({ behavior: 'instant', block: 'start' }))
     await page.waitForTimeout(300)
     await page.screenshot({ path: `${dir}/${prefix}-${scheme}-result.png` })

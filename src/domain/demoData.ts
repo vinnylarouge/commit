@@ -1,0 +1,202 @@
+import { rosterId, unitId, weaponId } from './ids'
+import type { UnitProfile } from './profiles'
+import type { Roster } from './roster'
+
+const generatedAt = '2026-09-13T00:00:00.000Z'
+
+export const eradicators: UnitProfile = {
+  id: unitId('demo-eradicators'),
+  name: 'Eradicators',
+  points: 200,
+  models: 3,
+  toughness: 6,
+  armourSave: 3,
+  invulnerableSave: null,
+  woundsPerModel: 3,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Imperium'],
+  weapons: [{
+    id: weaponId('demo-melta-rifles'),
+    name: 'Melta rifles',
+    attacks: { kind: 'constant', value: 6 },
+    skill: 3,
+    strength: 9,
+    armourPenetration: -4,
+    damage: { kind: 'die', count: 1, sides: 6, modifier: 0 },
+    keywords: ['Melta'],
+    rules: { rerollHits: 'ones' },
+  }],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const ballistus: UnitProfile = {
+  id: unitId('demo-ballistus'),
+  name: 'Ballistus Dreadnought',
+  points: 170,
+  models: 1,
+  toughness: 10,
+  armourSave: 2,
+  invulnerableSave: null,
+  woundsPerModel: 12,
+  feelNoPain: null,
+  keywords: ['Vehicle', 'Imperium'],
+  weapons: [{
+    id: weaponId('demo-lascannon'),
+    name: 'Ballistus lascannon',
+    attacks: { kind: 'constant', value: 2 },
+    skill: 3,
+    strength: 12,
+    armourPenetration: -3,
+    damage: { kind: 'die', count: 1, sides: 6, modifier: 1 },
+    keywords: [],
+    rules: { rerollHits: 'ones' },
+  }],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const hellblasters: UnitProfile = {
+  id: unitId('demo-hellblasters'),
+  name: 'Hellblasters',
+  points: 230,
+  models: 5,
+  toughness: 4,
+  armourSave: 3,
+  invulnerableSave: null,
+  woundsPerModel: 2,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Imperium'],
+  weapons: [{
+    id: weaponId('demo-plasma-incinerators'),
+    name: 'Plasma incinerators',
+    attacks: { kind: 'constant', value: 10 },
+    skill: 3,
+    strength: 8,
+    armourPenetration: -3,
+    damage: { kind: 'constant', value: 2 },
+    keywords: ['Hazardous'],
+  }],
+  abilities: [],
+  unsupportedRules: ['Hazardous self-damage'],
+}
+
+export const intercessors: UnitProfile = {
+  id: unitId('demo-intercessors'),
+  name: 'Intercessors',
+  points: 160,
+  models: 5,
+  toughness: 4,
+  armourSave: 3,
+  invulnerableSave: null,
+  woundsPerModel: 2,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Imperium'],
+  weapons: [{
+    id: weaponId('demo-bolt-rifles'),
+    name: 'Bolt rifles',
+    attacks: { kind: 'constant', value: 10 },
+    skill: 3,
+    strength: 4,
+    armourPenetration: -1,
+    damage: { kind: 'constant', value: 1 },
+    keywords: [],
+  }],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const deathshroud: UnitProfile = {
+  id: unitId('demo-deathshroud'),
+  name: 'Deathshroud Terminators',
+  points: 160,
+  models: 3,
+  toughness: 6,
+  armourSave: 2,
+  invulnerableSave: 4,
+  woundsPerModel: 3,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Chaos'],
+  weapons: [],
+  abilities: [],
+  unsupportedRules: ['Defensive leader abilities'],
+}
+
+export const landRaider: UnitProfile = {
+  id: unitId('demo-land-raider'),
+  name: 'Land Raider',
+  points: 240,
+  models: 1,
+  toughness: 12,
+  armourSave: 2,
+  invulnerableSave: null,
+  woundsPerModel: 16,
+  feelNoPain: null,
+  keywords: ['Vehicle', 'Chaos'],
+  weapons: [],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const plagueMarines: UnitProfile = {
+  id: unitId('demo-plague-marines'),
+  name: 'Plague Marines',
+  points: 180,
+  models: 5,
+  toughness: 5,
+  armourSave: 3,
+  invulnerableSave: null,
+  woundsPerModel: 2,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Chaos'],
+  weapons: [],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const cultists: UnitProfile = {
+  id: unitId('demo-cultists'),
+  name: 'Cultists',
+  points: 50,
+  models: 10,
+  toughness: 3,
+  armourSave: 6,
+  invulnerableSave: null,
+  woundsPerModel: 1,
+  feelNoPain: null,
+  keywords: ['Infantry', 'Chaos'],
+  weapons: [],
+  abilities: [],
+  unsupportedRules: [],
+}
+
+export const demoMyRoster: Roster = {
+  id: rosterId('demo-my-roster'),
+  name: 'Demo strike force',
+  faction: 'Demo Imperium',
+  role: 'mine',
+  units: [eradicators, ballistus, hellblasters, intercessors],
+  source: 'demo',
+  updatedAt: generatedAt,
+}
+
+export const demoOpponentRoster: Roster = {
+  id: rosterId('demo-opponent-roster'),
+  name: 'Demo opposing force',
+  faction: 'Demo Chaos',
+  role: 'opponent',
+  units: [deathshroud, landRaider, plagueMarines, cultists],
+  source: 'demo',
+  updatedAt: generatedAt,
+}
+
+export const demoRosters: ReadonlyArray<Roster> = [demoMyRoster, demoOpponentRoster]
+
+export const demoBundle = {
+  schemaVersion: 1,
+  gameEdition: 'Demo ruleset',
+  rulesRevision: 'commit-demo-2026-09-13',
+  generatedAt,
+  units: [...demoMyRoster.units, ...demoOpponentRoster.units],
+  abilities: [],
+} as const
