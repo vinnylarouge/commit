@@ -15,6 +15,14 @@ describe('portable matchup files', () => {
     expect(parseMatchupFile(serialiseMatchup(state))).toEqual(state)
   })
 
+  it('fills in modifier controls added after an older export', () => {
+    const oldState = JSON.parse(serialiseMatchup(state)) as { state: { modifiers: Record<string, unknown> } }
+    delete oldState.state.modifiers.toughnessModifier
+    delete oldState.state.modifiers.rerollSaves
+    expect(parseMatchupFile(JSON.stringify(oldState)).modifiers.toughnessModifier).toBe(0)
+    expect(parseMatchupFile(JSON.stringify(oldState)).modifiers.rerollSaves).toBe('none')
+  })
+
   it('rejects unrelated JSON', () => {
     expect(() => parseMatchupFile('{"hello":"world"}')).toThrow('not supported')
   })

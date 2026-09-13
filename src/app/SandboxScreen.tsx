@@ -5,6 +5,7 @@ import { formatDice } from '../domain/diceText'
 import type { UnitProfile } from '../domain/profiles'
 import { probabilityWord } from '../domain/probability'
 import { defaultSandboxModifiers, type SandboxState } from '../domain/sandbox'
+import type { ProfileOverride } from '../domain/combatState'
 import { analyseSandbox } from '../engine/combat/analyseSandbox'
 import { cacheAnalysis, contentHash, pruneAnalysisCache } from '../persistence/cache'
 import { db, type SavedMatchup } from '../persistence/db'
@@ -14,6 +15,9 @@ import { useRosterStore } from '../stores/rosters'
 
 const percentage = (probability: number): string => (probability * 100).toFixed(1)
 type Notice = Readonly<{ kind: 'success' | 'error'; text: string }>
+const signedOptions = [-2, -1, 0, 1, 2] as const
+const signedLabel = (value: number): string => value === 0 ? 'None' : value > 0 ? `+${value}` : String(value)
+const asOverride = (value: string): ProfileOverride => value === 'profile' || value === 'none' ? value : Number(value) as ProfileOverride
 
 export function SandboxScreen() {
   const rosters = useRosterStore((store) => store.rosters)
@@ -26,12 +30,13 @@ export function SandboxScreen() {
     version: 1,
     attacker: eradicators,
     target: deathshroud,
+    weaponId: eradicators.weapons[0]?.id,
     modifiers: defaultSandboxModifiers,
   })
   const [notice, setNotice] = useState<Notice | null>(null)
   const [shareLink, setShareLink] = useState<string | null>(null)
   const [savedMatchups, setSavedMatchups] = useState<ReadonlyArray<SavedMatchup>>([])
-  const attackerWeapon = state.attacker.weapons[0]
+  const attackerWeapon = state.attacker.weapons.find(({ id }) => id === state.weaponId) ?? state.attacker.weapons[0]
 
   useEffect(() => {
     let active = true
@@ -71,7 +76,9 @@ export function SandboxScreen() {
   const selectUnit = (role: 'attacker' | 'target', id: string) => {
     const unit = units.find(({ id: unitId }) => unitId === id)
     if (unit === undefined) return
-    setState((current) => ({ ...current, [role]: unit }))
+    setState((current) => role === 'attacker'
+      ? { ...current, attacker: unit, weaponId: unit.weapons[0]?.id }
+      : { ...current, target: unit })
     setNotice(null)
     setShareLink(null)
   }
@@ -143,9 +150,10 @@ export function SandboxScreen() {
         <div className="select-grid sandbox-selects">
           <label><span>Attacker</span><select value={state.attacker.id} onChange={(event) => selectUnit('attacker', event.currentTarget.value)}>{units.filter(({ weapons }) => weapons.length > 0).map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
           <label><span>Target</span><select value={state.target.id} onChange={(event) => selectUnit('target', event.currentTarget.value)}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
+          <label className="wide"><span>Weapon</span><select value={attackerWeapon?.id ?? ''} onChange={(event) => setState((current) => ({ ...current, weaponId: event.currentTarget.value as NonNullable<SandboxState['weaponId']> }))}>{state.attacker.weapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.name} · {(weapon.phase ?? 'shoot') === 'shoot' ? 'Shoot' : 'Fight'}</option>)}</select></label>
         </div>
         <details className="profile-disclosure">
-          <summary><span>Edit attacker stats</span><small>{attackerWeapon === undefined ? 'Weapon needed' : `${formatDice(attackerWeapon.attacks)}A · ${attackerWeapon.skill}+ · S${attackerWeapon.strength} · AP ${attackerWeapon.armourPenetration} · Damage ${formatDice(attackerWeapon.damage)}`}</small></summary>
+          <summary><span>Edit attacker stats</span><small>{attackerWeapon === undefined ? 'Weapon needed' : `${state.attacker.models} models · ${formatDice(attackerWeapon.attacks)} attacks/model · ${attackerWeapon.skill}+ · S${attackerWeapon.strength} · AP ${attackerWeapon.armourPenetration} · Damage ${formatDice(attackerWeapon.damage)}`}</small></summary>
           <UnitEditor unit={state.attacker} index="sandbox-attacker" issues={[]} onChange={(attacker) => setState((current) => ({ ...current, attacker }))} />
         </details>
         <details className="profile-disclosure">
@@ -159,15 +167,20 @@ export function SandboxScreen() {
         <h2 id="modifiers-heading">What applies?</h2>
         <p className="section-help">The exact result updates as you change a field.</p>
         <div className="modifier-grid">
-          <label><span>Hit modifier</span><select value={state.modifiers.hitModifier} onChange={(event) => updateModifier('hitModifier', Number(event.currentTarget.value))}><option value="-1">−1</option><option value="0">None</option><option value="1">+1</option></select></label>
-          <label><span>Wound modifier</span><select value={state.modifiers.woundModifier} onChange={(event) => updateModifier('woundModifier', Number(event.currentTarget.value))}><option value="-1">−1</option><option value="0">None</option><option value="1">+1</option></select></label>
-          <label><span>Re-roll hits</span><select value={state.modifiers.rerollHits} onChange={(event) => updateModifier('rerollHits', event.currentTarget.value as SandboxState['modifiers']['rerollHits'])}><option value="none">None</option><option value="ones">Ones</option><option value="failed">Failed</option></select></label>
-          <label><span>Re-roll wounds</span><select value={state.modifiers.rerollWounds} onChange={(event) => updateModifier('rerollWounds', event.currentTarget.value as SandboxState['modifiers']['rerollWounds'])}><option value="none">None</option><option value="ones">Ones</option><option value="failed">Failed</option></select></label>
+          <label><span>Hit roll</span><select value={state.modifiers.hitModifier} onChange={(event) => updateModifier('hitModifier', Number(event.currentTarget.value))}>{signedOptions.map((value) => <option key={value} value={value}>{signedLabel(value)}</option>)}</select></label>
+          <label><span>Wound roll</span><select value={state.modifiers.woundModifier} onChange={(event) => updateModifier('woundModifier', Number(event.currentTarget.value))}>{signedOptions.map((value) => <option key={value} value={value}>{signedLabel(value)}</option>)}</select></label>
+          <label><span>Re-roll hits</span><select value={state.modifiers.rerollHits} onChange={(event) => updateModifier('rerollHits', event.currentTarget.value as SandboxState['modifiers']['rerollHits'])}><option value="profile">Use profile</option><option value="none">None</option><option value="ones">Rolls of 1</option><option value="failed">All failed</option></select></label>
+          <label><span>Re-roll wounds</span><select value={state.modifiers.rerollWounds} onChange={(event) => updateModifier('rerollWounds', event.currentTarget.value as SandboxState['modifiers']['rerollWounds'])}><option value="profile">Use profile</option><option value="none">None</option><option value="ones">Rolls of 1</option><option value="failed">All failed</option></select></label>
           <label><span>Damage reduction</span><select value={state.modifiers.damageReduction} onChange={(event) => updateModifier('damageReduction', Number(event.currentTarget.value))}><option value="0">None</option><option value="1">−1 damage, min 1</option><option value="2">−2 damage, min 1</option></select></label>
           <label className="choice-line"><input type="checkbox" checked={state.modifiers.benefitOfCover} onChange={(event) => updateModifier('benefitOfCover', event.currentTarget.checked)} /><span>Target has cover</span></label>
           <label className="choice-line"><input type="checkbox" checked={state.modifiers.lethalHits} onChange={(event) => updateModifier('lethalHits', event.currentTarget.checked)} /><span>Lethal Hits</span></label>
           <label className="choice-line"><input type="checkbox" checked={state.modifiers.devastatingWounds} onChange={(event) => updateModifier('devastatingWounds', event.currentTarget.checked)} /><span>Devastating Wounds</span></label>
           <label><span>Sustained Hits</span><input type="number" min="0" max="3" value={state.modifiers.sustainedHits} onChange={(event) => updateModifier('sustainedHits', Math.max(0, Math.min(3, Number(event.currentTarget.value))))} /></label>
+          <label><span>Target Toughness</span><select value={state.modifiers.toughnessModifier} onChange={(event) => updateModifier('toughnessModifier', Number(event.currentTarget.value))}>{signedOptions.map((value) => <option key={value} value={value}>{signedLabel(value)}</option>)}</select></label>
+          <label><span>Target save roll</span><select value={state.modifiers.saveModifier} onChange={(event) => updateModifier('saveModifier', Number(event.currentTarget.value))}>{signedOptions.map((value) => <option key={value} value={value}>{signedLabel(value)}</option>)}</select></label>
+          <label><span>Re-roll saves</span><select value={state.modifiers.rerollSaves} onChange={(event) => updateModifier('rerollSaves', event.currentTarget.value as SandboxState['modifiers']['rerollSaves'])}><option value="none">None</option><option value="ones">Rolls of 1</option><option value="failed">All failed</option></select></label>
+          <label><span>Invulnerable save</span><select value={String(state.modifiers.invulnerableSave)} onChange={(event) => updateModifier('invulnerableSave', asOverride(event.currentTarget.value))}><option value="profile">Use profile</option><option value="none">None</option>{[2, 3, 4, 5, 6].map((value) => <option key={value} value={value}>{value}+</option>)}</select></label>
+          <label><span>Feel No Pain</span><select value={String(state.modifiers.feelNoPain)} onChange={(event) => updateModifier('feelNoPain', asOverride(event.currentTarget.value))}><option value="profile">Use profile</option><option value="none">None</option>{[2, 3, 4, 5, 6].map((value) => <option key={value} value={value}>{value}+</option>)}</select></label>
         </div>
       </section>
 

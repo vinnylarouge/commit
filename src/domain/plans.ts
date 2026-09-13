@@ -12,13 +12,16 @@ export type RecommendationView = Readonly<{
   continuation: string | null
   totalProbability: number
   totalWord: string
-  resourceAdvice: string
+  commitmentAdvice: string
   reason: string
   requiredConfidence: number
-  goalLabel: string
   expectedActivations: number
-  expectedCommandPoints: number
   expectedOverkill: number
+  averageDamage: number
+  typicalDamageLow: number
+  typicalDamageHigh: number
+  weaponName: string | null
+  modeLabel: string
   analysisMethod: string
   rulesTrace: ReadonlyArray<string>
   alternatives: ReadonlyArray<Readonly<{ name: string; probability: number }>>
@@ -55,37 +58,38 @@ export const presentCommitment = (analysis: CommitmentAnalysis): RecommendationV
   const plan = candidate.plan
   const first = plan.kind === 'act' ? plan.action : null
   const attack = attackFor(candidate, analysis.attacks)
-  const headlineProbability = result.kind === 'satisfied'
-    ? percentage(attack?.goalProbability ?? candidate.successProbability)
-    : percentage(candidate.successProbability)
+  const headlineProbability = percentage(attack?.killProbability ?? candidate.successProbability)
   const totalProbability = percentage(candidate.successProbability)
-  const expectedCommandPoints = candidate.expectedCost.commandPoints
+  const modeLabel = analysis.mode === 'both' ? 'Shoot + Fight' : analysis.mode === 'shoot' ? 'Shoot' : 'Fight'
 
   return {
     kind: result.kind,
     firstActionId: first?.attackerId ?? null,
-    headline: result.kind === 'impossible'
-      ? 'No reliable plan'
-      : first === null ? 'No attack needed' : `${first.name} first`,
+    headline: first === null
+      ? result.kind === 'impossible' ? 'No available attack' : 'No attack needed'
+      : `${first.name} first`,
     headlineProbability,
     headlineWord: probabilityWord(headlineProbability),
-    probabilityLabel: analysis.goalLabel === 'Kill unit' ? 'kill chance' : 'success chance',
+    probabilityLabel: 'kill chance',
     continuation: firstContinuation(plan),
     totalProbability,
     totalWord: probabilityWord(totalProbability),
-    resourceAdvice: expectedCommandPoints < 0.01
-      ? 'Save the CP'
-      : `Spend ${Math.ceil(expectedCommandPoints)} CP`,
+    commitmentAdvice: result.kind === 'impossible'
+      ? 'Below your confidence target'
+      : firstContinuation(plan) === null ? 'Commit this unit' : 'Hold the second unit back',
     reason: result.kind === 'impossible'
       ? `Even the best available policy misses the ${percentage(result.requiredConfidence)}% requirement.`
       : firstContinuation(plan) === null
-        ? 'This action reaches the requested confidence alone.'
-        : 'Continue only if the target survives, preserving the later activation when it succeeds.',
+        ? 'This is the least commitment that reaches the requested confidence.'
+        : `Add ${firstContinuation(plan)} only if the target survives.`,
     requiredConfidence: percentage(result.requiredConfidence),
-    goalLabel: analysis.goalLabel,
     expectedActivations: candidate.expectedCost.activations,
-    expectedCommandPoints,
     expectedOverkill: candidate.expectedCost.expectedOverkill,
+    averageDamage: attack?.expectedDamage ?? 0,
+    typicalDamageLow: attack?.typicalDamageLow ?? 0,
+    typicalDamageHigh: attack?.typicalDamageHigh ?? 0,
+    weaponName: attack?.weaponName ?? null,
+    modeLabel,
     analysisMethod: 'Exact attack probabilities; adaptive plans grouped within 1 percentage point.',
     rulesTrace: attack?.rulesTrace ?? [],
     alternatives: analysis.alternatives

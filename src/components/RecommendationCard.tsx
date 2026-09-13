@@ -2,12 +2,9 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { RecommendationView } from '../domain/plans'
 import { usePreferences } from '../stores/preferences'
 
-type Props = Readonly<{
-  recommendation: RecommendationView
-  onResolve?: () => void
-}>
+type Props = Readonly<{ recommendation: RecommendationView }>
 
-export function RecommendationCard({ recommendation, onResolve }: Props) {
+export function RecommendationCard({ recommendation }: Props) {
   const { detail } = usePreferences()
   const heading = useRef<HTMLHeadingElement>(null)
   const [detailsOpen, setDetailsOpen] = useState(detail === 'detailed')
@@ -32,18 +29,23 @@ export function RecommendationCard({ recommendation, onResolve }: Props) {
           <strong className="figure">→ {recommendation.totalProbability}% total, {recommendation.totalWord}</strong>
         </div>
       )}
-      <p className="resource-advice">{recommendation.resourceAdvice}</p>
+      <p className="resource-advice">{recommendation.commitmentAdvice}</p>
       <p className="result-reason">{recommendation.reason}</p>
-      {onResolve === undefined ? null : (
-        <button className="secondary-action" type="button" onClick={onResolve}>Resolve attack</button>
+      {recommendation.weaponName === null ? null : (
+        <div className="damage-outcome">
+          <span>Average from the first unit</span>
+          <strong className="figure">{recommendation.averageDamage.toFixed(1)} wounds</strong>
+          <small className="figure">80% of rolls: {recommendation.typicalDamageLow}–{recommendation.typicalDamageHigh} wounds</small>
+        </div>
       )}
       <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
         <summary>Details</summary>
         <dl className="metric-list">
-          <div><dt>Goal</dt><dd>{recommendation.goalLabel} at ≥ <span className="figure">{recommendation.requiredConfidence}%</span></dd></div>
+          <div><dt>Mode</dt><dd>{recommendation.modeLabel}</dd></div>
+          <div><dt>Weapon</dt><dd>{recommendation.weaponName ?? 'None'}</dd></div>
+          <div><dt>Required confidence</dt><dd>≥ <span className="figure">{recommendation.requiredConfidence}%</span></dd></div>
           <div><dt>Total success</dt><dd className="figure">{recommendation.totalProbability}%</dd></div>
           <div><dt>Expected activations</dt><dd className="figure">{recommendation.expectedActivations.toFixed(2)}</dd></div>
-          <div><dt>Expected CP</dt><dd className="figure">{recommendation.expectedCommandPoints.toFixed(2)}</dd></div>
           <div><dt>Method</dt><dd>{recommendation.analysisMethod}</dd></div>
         </dl>
         {recommendation.unsupportedRules.length === 0 ? null : (

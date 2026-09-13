@@ -21,8 +21,9 @@ const numberValue = (
 ): number => Math.min(maximum, Math.max(minimum, Math.floor(Number(value) || 0)))
 
 const defaultWeapon = (unit: UnitProfile): WeaponProfile => ({
-  id: weaponId(`${unit.id}-weapon`),
+  id: weaponId(`${unit.id}-weapon-${Date.now()}`),
   name: 'New weapon',
+  phase: 'shoot',
   attacks: { kind: 'constant', value: 1 },
   skill: 4,
   strength: 4,
@@ -31,19 +32,57 @@ const defaultWeapon = (unit: UnitProfile): WeaponProfile => ({
   keywords: [],
 })
 
-export function UnitEditor({ unit, index, issues, onChange, onAccept, onRemove, showWeapon = true }: Props) {
-  const weapon = unit.weapons[0]
-  const [attacks, setAttacks] = useState(weapon === undefined ? '1' : formatDice(weapon.attacks))
-  const [damage, setDamage] = useState(weapon === undefined ? '1' : formatDice(weapon.damage))
+type WeaponEditorProps = Readonly<{
+  weapon: WeaponProfile
+  index: string
+  onChange: (weapon: WeaponProfile, field: string) => void
+  onRemove: () => void
+}>
+
+function WeaponEditor({ weapon, index, onChange, onRemove }: WeaponEditorProps) {
+  const [attacks, setAttacks] = useState(formatDice(weapon.attacks))
+  const [damage, setDamage] = useState(formatDice(weapon.damage))
 
   useEffect(() => {
-    setAttacks(weapon === undefined ? '1' : formatDice(weapon.attacks))
-    setDamage(weapon === undefined ? '1' : formatDice(weapon.damage))
-  }, [unit.id, weapon])
+    setAttacks(formatDice(weapon.attacks))
+    setDamage(formatDice(weapon.damage))
+  }, [weapon.id, weapon.attacks, weapon.damage])
 
-  const updateWeapon = (change: Partial<WeaponProfile>, field: string) => {
-    const current = weapon ?? defaultWeapon(unit)
-    onChange({ ...unit, weapons: [{ ...current, ...change }, ...unit.weapons.slice(1)] }, field)
+  return (
+    <div className="weapon-editor">
+      <div className="weapon-heading">
+        <p className="eyebrow">Weapon</p>
+        <button className="danger-action" type="button" onClick={onRemove}>Remove</button>
+      </div>
+      <div className="form-grid weapon-grid">
+        <label className="wide"><span>Name</span><input name={`${index}-weapon-name`} autoComplete="off" value={weapon.name} onChange={(event) => onChange({ ...weapon, name: event.currentTarget.value }, 'weapons')} /></label>
+        <label><span>Used in</span><select name={`${index}-phase`} value={weapon.phase ?? 'shoot'} onChange={(event) => onChange({ ...weapon, phase: event.currentTarget.value as WeaponProfile['phase'] }, 'weapons')}><option value="shoot">Shoot</option><option value="fight">Fight</option></select></label>
+        <label><span>Attacks/model</span><input name={`${index}-attacks`} autoComplete="off" value={attacks} aria-invalid={parseDice(attacks) === null} onChange={(event) => {
+          const next = event.currentTarget.value
+          setAttacks(next)
+          const parsed = parseDice(next)
+          if (parsed !== null) onChange({ ...weapon, attacks: parsed }, 'attacks')
+        }} /></label>
+        <label><span>BS/WS</span><input name={`${index}-skill`} autoComplete="off" inputMode="numeric" type="number" min="2" max="6" value={weapon.skill} onChange={(event) => onChange({ ...weapon, skill: numberValue(event.currentTarget.value, 2, 6) }, 'skill')} /></label>
+        <label><span>Strength</span><input name={`${index}-strength`} autoComplete="off" inputMode="numeric" type="number" min="1" max="100" value={weapon.strength} onChange={(event) => onChange({ ...weapon, strength: numberValue(event.currentTarget.value, 1, 100) }, 'strength')} /></label>
+        <label><span>AP</span><input name={`${index}-ap`} autoComplete="off" inputMode="numeric" type="number" min="-6" max="0" value={weapon.armourPenetration} onChange={(event) => onChange({ ...weapon, armourPenetration: numberValue(event.currentTarget.value, -6, 0) }, 'armourPenetration')} /></label>
+        <label><span>Damage</span><input name={`${index}-damage`} autoComplete="off" value={damage} aria-invalid={parseDice(damage) === null} onChange={(event) => {
+          const next = event.currentTarget.value
+          setDamage(next)
+          const parsed = parseDice(next)
+          if (parsed !== null) onChange({ ...weapon, damage: parsed }, 'damage')
+        }} /></label>
+      </div>
+    </div>
+  )
+}
+
+export function UnitEditor({ unit, index, issues, onChange, onAccept, onRemove, showWeapon = true }: Props) {
+  const updateWeapon = (weaponIndex: number, weapon: WeaponProfile, field: string) => {
+    onChange({
+      ...unit,
+      weapons: unit.weapons.map((existing, indexToUpdate) => indexToUpdate === weaponIndex ? weapon : existing),
+    }, field)
   }
 
   return (
@@ -68,29 +107,18 @@ export function UnitEditor({ unit, index, issues, onChange, onAccept, onRemove, 
         <label><span>Feel No Pain</span><input name={`${index}-feel-no-pain`} autoComplete="off" inputMode="numeric" type="number" min="2" max="6" placeholder="None" value={unit.feelNoPain ?? ''} onChange={(event) => onChange({ ...unit, feelNoPain: event.currentTarget.value === '' ? null : numberValue(event.currentTarget.value, 2, 6) }, 'feelNoPain')} /></label>
       </div>
 
-      {!showWeapon ? null : weapon === undefined ? (
-        <button className="quiet-action add-weapon" type="button" onClick={() => updateWeapon({}, 'weapons')}>Add attacking weapon</button>
-      ) : (
-        <div className="weapon-editor">
-          <p className="eyebrow">Primary weapon</p>
-          <div className="form-grid weapon-grid">
-            <label className="wide"><span>Name</span><input name={`${index}-weapon-name`} autoComplete="off" value={weapon.name} onChange={(event) => updateWeapon({ name: event.currentTarget.value }, 'weapons')} /></label>
-            <label><span>Attacks</span><input name={`${index}-attacks`} autoComplete="off" value={attacks} aria-invalid={parseDice(attacks) === null} onChange={(event) => {
-              const next = event.currentTarget.value
-              setAttacks(next)
-              const parsed = parseDice(next)
-              if (parsed !== null) updateWeapon({ attacks: parsed }, 'attacks')
-            }} /></label>
-            <label><span>BS/WS</span><input name={`${index}-skill`} autoComplete="off" inputMode="numeric" type="number" min="2" max="6" value={weapon.skill} onChange={(event) => updateWeapon({ skill: numberValue(event.currentTarget.value, 2, 6) }, 'skill')} /></label>
-            <label><span>Strength</span><input name={`${index}-strength`} autoComplete="off" inputMode="numeric" type="number" min="1" max="100" value={weapon.strength} onChange={(event) => updateWeapon({ strength: numberValue(event.currentTarget.value, 1, 100) }, 'strength')} /></label>
-            <label><span>AP</span><input name={`${index}-ap`} autoComplete="off" inputMode="numeric" type="number" min="-6" max="0" value={weapon.armourPenetration} onChange={(event) => updateWeapon({ armourPenetration: numberValue(event.currentTarget.value, -6, 0) }, 'armourPenetration')} /></label>
-            <label><span>Damage</span><input name={`${index}-damage`} autoComplete="off" value={damage} aria-invalid={parseDice(damage) === null} onChange={(event) => {
-              const next = event.currentTarget.value
-              setDamage(next)
-              const parsed = parseDice(next)
-              if (parsed !== null) updateWeapon({ damage: parsed }, 'damage')
-            }} /></label>
-          </div>
+      {!showWeapon ? null : (
+        <div className="weapon-list">
+          {unit.weapons.map((weapon, weaponIndex) => (
+            <WeaponEditor
+              key={weapon.id}
+              weapon={weapon}
+              index={`${index}-${weaponIndex}`}
+              onChange={(next, field) => updateWeapon(weaponIndex, next, field)}
+              onRemove={() => onChange({ ...unit, weapons: unit.weapons.filter((_, indexToRemove) => indexToRemove !== weaponIndex) }, 'weapons')}
+            />
+          ))}
+          <button className="quiet-action add-weapon" type="button" onClick={() => onChange({ ...unit, weapons: [...unit.weapons, defaultWeapon(unit)] }, 'weapons')}>Add weapon</button>
         </div>
       )}
       {onRemove === undefined ? null : <button className="danger-action" type="button" onClick={onRemove}>Remove unit</button>}

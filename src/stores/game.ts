@@ -1,7 +1,14 @@
 import { create } from 'zustand'
 import { demoMyRoster, demoOpponentRoster } from '../domain/demoData'
-import type { GameGoal, GamePhase, GameSession, UnitState } from '../domain/combatState'
+import type {
+  AttackerModifiers,
+  AttackerSetup,
+  CombatMode,
+  DefenderSetup,
+  GameSession,
+} from '../domain/combatState'
 import { sessionId, type UnitId } from '../domain/ids'
+import type { UnitProfile } from '../domain/profiles'
 import type { Roster } from '../domain/roster'
 import { ensureDemoData } from '../persistence/bootstrap'
 import { db } from '../persistence/db'
@@ -11,50 +18,74 @@ if (initialTarget === undefined) throw new Error('Demo opponent roster is empty'
 
 const now = () => new Date().toISOString()
 
-const rosterUnitStates = (myRoster: Roster, opponentRoster: Roster): Readonly<Record<string, UnitState>> => Object.fromEntries(
-  [...myRoster.units, ...opponentRoster.units].map((unit) => [
-    unit.id,
-    {
-      unitId: unit.id,
-      woundsRemaining: unit.models * unit.woundsPerModel,
-      hasActivated: false,
-    },
-  ] as const),
-)
+export const defaultAttackerModifiers: AttackerModifiers = {
+  hitModifier: 0,
+  woundModifier: 0,
+  rerollHits: 'profile',
+  rerollWounds: 'profile',
+  lethalHits: false,
+  sustainedHits: 0,
+  devastatingWounds: false,
+}
+
+const weaponForPhase = (unit: UnitProfile, phase: 'shoot' | 'fight') =>
+  unit.weapons.find((weapon) => (weapon.phase ?? 'shoot') === phase)?.id ?? null
+
+export const setupForUnit = (unit: UnitProfile): AttackerSetup => ({
+  unitId: unit.id,
+  modelCount: unit.models,
+  shootWeaponId: weaponForPhase(unit, 'shoot'),
+  fightWeaponId: weaponForPhase(unit, 'fight'),
+  modifiers: defaultAttackerModifiers,
+})
+
+const setupsForRoster = (roster: Roster): Readonly<Record<string, AttackerSetup>> =>
+  Object.fromEntries(roster.units.map((unit) => [unit.id, setupForUnit(unit)]))
+
+const setupForTarget = (unit: UnitProfile): DefenderSetup => ({
+  modelCount: unit.models,
+  toughnessModifier: 0,
+  saveModifier: 0,
+  rerollSaves: 'none',
+  benefitOfCover: false,
+  invulnerableSave: 'profile',
+  feelNoPain: 'profile',
+})
 
 export const createDemoSession = (): GameSession => ({
-  id: sessionId('current-game'),
+  id: sessionId('current-plan'),
   myRosterId: demoMyRoster.id,
   opponentRosterId: demoOpponentRoster.id,
-  turn: 1,
-  phase: 'shooting',
-  commandPoints: 2,
+  mode: 'shoot',
   selectedTargetId: initialTarget.id,
   selectedAttackerIds: demoMyRoster.units.slice(0, 3).map(({ id }) => id),
-  goal: { kind: 'kill' },
-  units: rosterUnitStates(demoMyRoster, demoOpponentRoster),
+  attackerSetups: setupsForRoster(demoMyRoster),
+  defenderSetup: setupForTarget(initialTarget),
   updatedAt: now(),
 })
+
+const isCurrentSession = (session: GameSession): boolean =>
+  ['shoot', 'fight', 'both'].includes(session.mode)
+  && typeof session.attackerSetups === 'object'
+  && typeof session.defenderSetup === 'object'
 
 type GameStore = Readonly<{
   session: GameSession
   hydrated: boolean
   persistenceError: string | null
   hydrate: () => Promise<void>
-  selectTarget: (unitId: UnitId) => void
+  selectTarget: (unit: UnitProfile) => void
   toggleAttacker: (unitId: UnitId) => void
-  setCommandPoints: (commandPoints: number) => void
-  setPhase: (phase: GamePhase) => void
-  setGoal: (goal: GameGoal) => void
-  resolveAttack: (attackerId: UnitId, targetId: UnitId, woundsRemaining: number) => void
-  nextTurn: () => void
+  setMode: (mode: CombatMode) => void
+  updateAttackerSetup: (unitId: UnitId, transform: (setup: AttackerSetup) => AttackerSetup) => void
+  updateDefenderSetup: (transform: (setup: DefenderSetup) => DefenderSetup) => void
   startGame: (myRoster: Roster, opponentRoster: Roster) => void
   resetDemo: () => void
 }>
 
 export const useGameStore = create<GameStore>((set, get) => {
   const reportPersistenceError = (error: unknown) => set({
-    persistenceError: error instanceof Error ? error.message : 'Could not save the current game',
+    persistenceError: error instanceof Error ? error.message : 'Could not save this plan',
   })
 
   const persist = (session: GameSession) => {
@@ -74,20 +105,22 @@ export const useGameStore = create<GameStore>((set, get) => {
     hydrate: async () => {
       try {
         await ensureDemoData()
-        const stored = await db.sessions.get(sessionId('current-game'))
-        const session = stored === undefined
-          ? createDemoSession()
-          : { ...stored, goal: stored.goal ?? { kind: 'kill' } }
-        if (stored === undefined) await db.sessions.put(session)
+        const stored = await db.sessions.get(sessionId('current-plan'))
+        const session = stored !== undefined && isCurrentSession(stored) ? stored : createDemoSession()
+        if (stored === undefined || !isCurrentSession(stored)) await db.sessions.put(session)
         set({ session, hydrated: true, persistenceError: null })
       } catch (error: unknown) {
         set({
           hydrated: true,
-          persistenceError: error instanceof Error ? error.message : 'Could not load the saved game',
+          persistenceError: error instanceof Error ? error.message : 'Could not load the saved plan',
         })
       }
     },
-    selectTarget: (unitId) => update((session) => ({ ...session, selectedTargetId: unitId })),
+    selectTarget: (unit) => update((session) => ({
+      ...session,
+      selectedTargetId: unit.id,
+      defenderSetup: setupForTarget(unit),
+    })),
     toggleAttacker: (unitId) => update((session) => ({
       ...session,
       selectedAttackerIds: session.selectedAttackerIds.includes(unitId)
@@ -96,37 +129,15 @@ export const useGameStore = create<GameStore>((set, get) => {
           ? session.selectedAttackerIds
           : [...session.selectedAttackerIds, unitId],
     })),
-    setCommandPoints: (commandPoints) => update((session) => ({
+    setMode: (mode) => update((session) => ({ ...session, mode })),
+    updateAttackerSetup: (unitId, transform) => update((session) => {
+      const current = session.attackerSetups[unitId]
+      if (current === undefined) return session
+      return { ...session, attackerSetups: { ...session.attackerSetups, [unitId]: transform(current) } }
+    }),
+    updateDefenderSetup: (transform) => update((session) => ({
       ...session,
-      commandPoints: Math.max(0, Math.floor(commandPoints)),
-    })),
-    setPhase: (phase) => update((session) => ({ ...session, phase })),
-    setGoal: (goal) => update((session) => ({ ...session, goal })),
-    resolveAttack: (attackerId, targetId, woundsRemaining) => update((session) => ({
-      ...session,
-      units: {
-        ...session.units,
-        [attackerId]: {
-          unitId: attackerId,
-          woundsRemaining: session.units[attackerId]?.woundsRemaining ?? 0,
-          hasActivated: true,
-        },
-        [targetId]: {
-          unitId: targetId,
-          woundsRemaining: Math.max(0, Math.floor(woundsRemaining)),
-          hasActivated: session.units[targetId]?.hasActivated ?? false,
-        },
-      },
-      selectedAttackerIds: session.selectedAttackerIds.filter((id) => id !== attackerId),
-    })),
-    nextTurn: () => update((session) => ({
-      ...session,
-      turn: session.turn + 1,
-      phase: 'command',
-      units: Object.fromEntries(Object.entries(session.units).map(([id, unit]) => [
-        id,
-        { ...unit, hasActivated: false },
-      ])),
+      defenderSetup: transform(session.defenderSetup),
     })),
     startGame: (myRoster, opponentRoster) => {
       const firstTarget = opponentRoster.units[0]
@@ -137,7 +148,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         opponentRosterId: opponentRoster.id,
         selectedTargetId: firstTarget.id,
         selectedAttackerIds: myRoster.units.filter(({ weapons }) => weapons.length > 0).slice(0, 6).map(({ id }) => id),
-        units: rosterUnitStates(myRoster, opponentRoster),
+        attackerSetups: setupsForRoster(myRoster),
+        defenderSetup: setupForTarget(firstTarget),
         updatedAt: now(),
       }
       set({ session, persistenceError: null })

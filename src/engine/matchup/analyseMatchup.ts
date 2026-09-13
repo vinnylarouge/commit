@@ -1,6 +1,7 @@
 import type { UnitProfile } from '../../domain/profiles'
 import { targetProfile } from '../../domain/profiles'
 import { analyseCombat } from '../combat/analyseCombat'
+import { scaleDice } from '../combat/configure'
 
 export type MatchupCell = Readonly<{
   attackerId: string
@@ -27,10 +28,10 @@ export const analyseMatchup = (
   targets: ReadonlyArray<UnitProfile>,
 ): MatchupAnalysis => {
   const cells = attackers.flatMap((attacker) => {
-    const weapon = attacker.weapons[0]
+    const weapon = attacker.weapons.find(({ phase }) => (phase ?? 'shoot') === 'shoot')
     if (weapon === undefined) return []
     return targets.map((target): MatchupCell => {
-      const result = analyseCombat({ weapon, target: targetProfile(target) })
+      const result = analyseCombat({ weapon: { ...weapon, attacks: scaleDice(weapon.attacks, attacker.models) }, target: targetProfile(target) })
       const targetWounds = target.models * target.woundsPerModel
       const expectedEnemyPointsRemoved = target.points * result.expectedDamage / targetWounds
       const pointScale = attacker.points > 0 ? 100 / attacker.points : 0

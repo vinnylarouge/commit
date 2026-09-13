@@ -2,6 +2,8 @@ import type { DiceExpr } from '../engine/dice/dice'
 import type { RerollRule } from '../engine/dice/d6Check'
 import type { AbilityId, UnitId, WeaponId } from './ids'
 
+export type AttackPhase = 'shoot' | 'fight'
+
 export type AttackRules = Readonly<{
   hitModifier?: number
   woundModifier?: number
@@ -15,6 +17,7 @@ export type AttackRules = Readonly<{
 export type WeaponProfile = Readonly<{
   id: WeaponId
   name: string
+  phase?: AttackPhase
   attacks: DiceExpr
   skill: number
   strength: number
@@ -50,6 +53,8 @@ export type TargetProfile = Readonly<{
   woundsPerModel: number
   feelNoPain: number | null
   benefitOfCover: boolean
+  saveModifier?: number
+  rerollSaves?: RerollRule
 }>
 
 export const targetProfile = (

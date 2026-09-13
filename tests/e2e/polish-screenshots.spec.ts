@@ -11,7 +11,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByText('Deathshroud Terminators').waitFor()
     await page.screenshot({ path: `${dir}/${prefix}-${scheme}-setup.png` })
 
-    await page.getByRole('button', { name: 'Find best commitment' }).click()
+    await page.getByRole('button', { name: 'Find least commitment' }).click()
     const heading = page.locator('.result h1')
     await heading.waitFor({ timeout: 15_000 })
     await heading.evaluate((el) => el.closest('section')?.scrollIntoView({ behavior: 'instant', block: 'start' }))

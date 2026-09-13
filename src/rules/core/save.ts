@@ -25,16 +25,21 @@ export const failedSaveDistribution = (
 ): PMF<number> => {
   const { saveableWounds, devastatingWounds } = decodeWoundTally(woundTallyKey)
   const required = effectiveSaveTarget(target, armourPenetration)
-  let failedFaces = 0
-  for (let face = 1; face <= 6; face += 1) {
-    const saved = face !== 1 && face >= required
-    if (!saved) failedFaces += 1
+  const modifier = target.saveModifier ?? 0
+  const reroll = target.rerollSaves ?? 'none'
+  const saved = (face: number): boolean => face !== 1 && face + modifier >= required
+  const outcomes: Array<readonly [number, number]> = []
+  for (let first = 1; first <= 6; first += 1) {
+    const shouldReroll = reroll === 'failed' ? !saved(first) : reroll === 'ones' && first === 1
+    if (!shouldReroll) {
+      outcomes.push([saved(first) ? 0 : 1, 1 / 6])
+      continue
+    }
+    for (let second = 1; second <= 6; second += 1) {
+      outcomes.push([saved(second) ? 0 : 1, 1 / 36])
+    }
   }
-
-  const singleSave = createPmf([
-    [0, 6 - failedFaces],
-    [1, failedFaces],
-  ])
+  const singleSave = createPmf(outcomes)
   return repeatDistribution(
     saveableWounds,
     devastatingWounds,

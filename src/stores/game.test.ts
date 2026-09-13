@@ -4,38 +4,44 @@ import { sessionId } from '../domain/ids'
 import { db } from '../persistence/db'
 import { createDemoSession, useGameStore } from './game'
 
-describe('game session store', () => {
+describe('pre-game planning store', () => {
   beforeEach(async () => {
     await db.delete()
     await db.open()
     useGameStore.setState({ session: createDemoSession(), hydrated: false, persistenceError: null })
   })
 
-  it('hydrates and persists the demo game in IndexedDB', async () => {
+  it('hydrates and persists a planning session in IndexedDB', async () => {
     await useGameStore.getState().hydrate()
     expect(useGameStore.getState().hydrated).toBe(true)
-    expect(await db.sessions.get(sessionId('current-game'))).toBeDefined()
+    expect(await db.sessions.get(sessionId('current-plan'))).toBeDefined()
   })
 
-  it('removes an activated attacker and records target damage', async () => {
+  it('stores attack type, model count and attacker modifiers', () => {
     const attacker = demoMyRoster.units[0]
-    const target = demoOpponentRoster.units[0]
-    if (attacker === undefined || target === undefined) throw new Error('Demo fixture is empty')
-
-    useGameStore.getState().resolveAttack(attacker.id, target.id, 4)
+    if (attacker === undefined) throw new Error('Demo fixture is empty')
+    useGameStore.getState().setMode('both')
+    useGameStore.getState().updateAttackerSetup(attacker.id, (setup) => ({
+      ...setup,
+      modelCount: 2,
+      modifiers: { ...setup.modifiers, hitModifier: 1, rerollWounds: 'failed' },
+    }))
     const session = useGameStore.getState().session
-    expect(session.units[attacker.id]?.hasActivated).toBe(true)
-    expect(session.units[target.id]?.woundsRemaining).toBe(4)
-    expect(session.selectedAttackerIds).not.toContain(attacker.id)
+    expect(session.mode).toBe('both')
+    expect(session.attackerSetups[attacker.id]).toMatchObject({
+      modelCount: 2,
+      modifiers: { hitModifier: 1, rerollWounds: 'failed' },
+    })
   })
 
-  it('resets activations on the next turn', () => {
-    const attacker = demoMyRoster.units[0]
-    const target = demoOpponentRoster.units[0]
-    if (attacker === undefined || target === undefined) throw new Error('Demo fixture is empty')
-    useGameStore.getState().resolveAttack(attacker.id, target.id, 4)
-    useGameStore.getState().nextTurn()
-    expect(useGameStore.getState().session.turn).toBe(2)
-    expect(useGameStore.getState().session.units[attacker.id]?.hasActivated).toBe(false)
+  it('resets defender overrides when the target changes', () => {
+    const target = demoOpponentRoster.units[1]
+    if (target === undefined) throw new Error('Demo fixture is empty')
+    useGameStore.getState().updateDefenderSetup((setup) => ({ ...setup, feelNoPain: 5 }))
+    useGameStore.getState().selectTarget(target)
+    expect(useGameStore.getState().session.defenderSetup).toMatchObject({
+      modelCount: target.models,
+      feelNoPain: 'profile',
+    })
   })
 })

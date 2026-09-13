@@ -9,13 +9,15 @@ test('sandbox updates, shares and imports an exact matchup', async ({ browser, p
   const damageFigure = page.locator('.headline-metrics p').nth(1).locator('strong')
   const initialDamage = await damageFigure.textContent()
   await page.getByLabel('Re-roll hits').selectOption('failed')
+  await page.getByLabel('Target Toughness').selectOption('2')
+  await page.getByLabel('Feel No Pain').last().selectOption('5')
   await expect(damageFigure).not.toHaveText(initialDamage ?? '')
   await page.getByRole('button', { name: 'Save on this device' }).click()
   await expect(page.getByText('Matchup saved on this device.')).toBeVisible()
   await expect(page.getByLabel('Saved matchups')).toContainText('Eradicators → Deathshroud Terminators')
   const rerolledDamage = await damageFigure.textContent()
   await page.getByText('Edit attacker stats').click()
-  await page.getByLabel('Attacks').fill('12')
+  await page.getByLabel('Attacks/model').first().fill('4')
   await expect(damageFigure).not.toHaveText(rerolledDamage ?? '')
 
   await page.getByRole('button', { name: 'Copy share link' }).click()
@@ -27,6 +29,7 @@ test('sandbox updates, shares and imports an exact matchup', async ({ browser, p
   await sharedPage.goto(sharedUrl)
   await expect(sharedPage.getByText('Shared matchup loaded.')).toBeVisible()
   await expect(sharedPage.getByLabel('Re-roll hits')).toHaveValue('failed')
+  await expect(sharedPage.getByLabel('Feel No Pain').last()).toHaveValue('5')
   await sharedPage.close()
 
   const [download] = await Promise.all([

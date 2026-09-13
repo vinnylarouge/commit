@@ -67,6 +67,7 @@ const weaponLine = (line: string, unitIndex: number): Readonly<{
     weapon: {
       id: weaponId(`paste-${unitIndex}-${slug(name)}`),
       name,
+      phase: /\bWS\b/i.test(line) && !/\bBS\b/i.test(line) ? 'fight' : 'shoot',
       attacks: parsedAttacks ?? { kind: 'constant', value: 1 },
       skill: skill ?? 4,
       strength: strength ?? 4,

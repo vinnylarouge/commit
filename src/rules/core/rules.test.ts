@@ -100,6 +100,12 @@ describe('save rules', () => {
   it('automatically carries devastating wounds into damage', () => {
     expect(failedSaveDistribution('0:2', target(), -1).get(2)).toBe(1)
   })
+
+  it('supports save-roll modifiers and re-rolling failed saves', () => {
+    const modified = { ...target(), saveModifier: -1, rerollSaves: 'failed' as const }
+    expect(failedSaveDistribution('1:0', modified, 0).get(0)).toBeCloseTo(3 / 4)
+    expect(failedSaveDistribution('1:0', modified, 0).get(1)).toBeCloseTo(1 / 4)
+  })
 })
 
 describe('damage and allocation rules', () => {

@@ -1,5 +1,6 @@
 import type { UnitProfile, TargetProfile } from '../domain/profiles'
 import type { UnitId } from '../domain/ids'
+import type { AttackerSetup, CombatMode } from '../domain/combatState'
 import type { OptimisationResult, PolicyCandidate } from '../engine/optimisation/types'
 
 export type OptimiseAnalysisRequest = Readonly<{
@@ -9,10 +10,9 @@ export type OptimiseAnalysisRequest = Readonly<{
   targetWoundsRemaining: number
   attackers: ReadonlyArray<UnitProfile>
   selectedAttackerIds: ReadonlyArray<UnitId>
+  attackerSetups: Readonly<Record<string, AttackerSetup>>
+  mode: CombatMode
   requiredConfidence: number
-  commandPoints: number
-  goalWoundsRemaining: number
-  goalLabel: string
   targetUnsupportedRules: ReadonlyArray<string>
 }>
 
@@ -25,10 +25,10 @@ export type AttackSummary = Readonly<{
   weaponName: string
   killProbability: number
   expectedDamage: number
+  typicalDamageLow: number
+  typicalDamageHigh: number
   rulesTrace: ReadonlyArray<string>
   remainingWounds: ReadonlyArray<readonly [number, number]>
-  commandPoints: number
-  goalProbability: number
 }>
 
 export type CommitmentAnalysis = Readonly<{
@@ -36,7 +36,7 @@ export type CommitmentAnalysis = Readonly<{
   attacks: ReadonlyArray<AttackSummary>
   alternatives: ReadonlyArray<PolicyCandidate<number>>
   unsupportedRules: ReadonlyArray<string>
-  goalLabel: string
+  mode: CombatMode
 }>
 
 export type AnalysisResponse =

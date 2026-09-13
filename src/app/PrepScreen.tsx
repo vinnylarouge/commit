@@ -14,7 +14,8 @@ Faction: Adeptus Astartes
 
 3x Eradicators (200 points)
 T 6, Sv 3+, W 3
-Melta rifles: A 6, BS 3+, S 9, AP -4, D D6`
+Melta rifles: A 2, BS 3+, S 9, AP -4, D D6
+Close combat weapons: A 3, WS 3+, S 4, AP 0, D 1`
 
 const manualUnit = (): UnitProfile => ({
   id: unitId(`manual-unit-${Date.now()}`),
@@ -30,6 +31,7 @@ const manualUnit = (): UnitProfile => ({
   weapons: [{
     id: weaponId(`manual-weapon-${Date.now()}`),
     name: 'New weapon',
+    phase: 'shoot',
     attacks: { kind: 'constant', value: 1 },
     skill: 3,
     strength: 4,
@@ -124,7 +126,7 @@ export function PrepScreen() {
           <label><span>Your roster</span><select value={myRoster?.id ?? ''} onChange={(event) => setMyRosterId(event.currentTarget.value as RosterId)}>{mine.map((roster) => <option key={roster.id} value={roster.id}>{roster.name}</option>)}</select></label>
           <label><span>Opponent</span><select value={opponentRoster?.id ?? ''} onChange={(event) => setOpponentRosterId(event.currentTarget.value as RosterId)}>{opponents.map((roster) => <option key={roster.id} value={roster.id}>{roster.name}</option>)}</select></label>
         </div>
-        <button className="primary-action" type="button" disabled={myRoster === undefined || opponentRoster === undefined} onClick={launchGame}>Start game</button>
+        <button className="primary-action" type="button" disabled={myRoster === undefined || opponentRoster === undefined} onClick={launchGame}>Use these rosters</button>
       </section>
 
       {myRoster === undefined || opponentRoster === undefined ? null : <MatchupView myRoster={myRoster} opponentRoster={opponentRoster} />}

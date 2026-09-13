@@ -1,7 +1,7 @@
 import type { SandboxState } from '../../domain/sandbox'
-import { targetProfile } from '../../domain/profiles'
 import { probabilityOf } from '../distributions/pmf'
 import { analyseCombat } from './analyseCombat'
+import { configureTarget, configureWeapon } from './configure'
 
 export type SandboxAnalysis = Readonly<{
   expectedDamage: number
@@ -14,22 +14,26 @@ export type SandboxAnalysis = Readonly<{
 }>
 
 export const analyseSandbox = (state: SandboxState): SandboxAnalysis => {
-  const weapon = state.attacker.weapons[0]
+  const weapon = state.attacker.weapons.find(({ id }) => id === state.weaponId) ?? state.attacker.weapons[0]
   if (weapon === undefined) throw new Error('Add a weapon to the attacker before analysing.')
-  const modifiedWeapon = {
-    ...weapon,
-    rules: {
-      ...weapon.rules,
-      hitModifier: state.modifiers.hitModifier,
-      woundModifier: state.modifiers.woundModifier,
-      rerollHits: state.modifiers.rerollHits,
-      rerollWounds: state.modifiers.rerollWounds,
-      lethalHits: state.modifiers.lethalHits,
-      sustainedHits: state.modifiers.sustainedHits,
-      devastatingWounds: state.modifiers.devastatingWounds,
-    },
-  }
-  const target = targetProfile(state.target, state.modifiers.benefitOfCover)
+  const modifiedWeapon = configureWeapon(weapon, state.attacker.models, {
+    hitModifier: state.modifiers.hitModifier,
+    woundModifier: state.modifiers.woundModifier,
+    rerollHits: state.modifiers.rerollHits,
+    rerollWounds: state.modifiers.rerollWounds,
+    lethalHits: state.modifiers.lethalHits,
+    sustainedHits: state.modifiers.sustainedHits,
+    devastatingWounds: state.modifiers.devastatingWounds,
+  })
+  const target = configureTarget(state.target, {
+    modelCount: state.target.models,
+    toughnessModifier: state.modifiers.toughnessModifier,
+    saveModifier: state.modifiers.saveModifier,
+    rerollSaves: state.modifiers.rerollSaves,
+    benefitOfCover: state.modifiers.benefitOfCover,
+    invulnerableSave: state.modifiers.invulnerableSave,
+    feelNoPain: state.modifiers.feelNoPain,
+  })
   const targetWounds = target.models * target.woundsPerModel
   const result = analyseCombat({ weapon: modifiedWeapon, target, damageReduction: state.modifiers.damageReduction })
   const thresholdValues = [...new Set([1, Math.ceil(targetWounds / 2), targetWounds])]

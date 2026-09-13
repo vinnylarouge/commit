@@ -35,11 +35,13 @@ for (const viewport of [
   { name: 'landscape phone', width: 844, height: 390 },
   { name: 'tablet', width: 768, height: 1024 },
 ] as const) {
-  test(`sandbox fits a ${viewport.name} without horizontal scrolling`, async ({ page }) => {
-    await page.setViewportSize(viewport)
-    await page.goto('#/sandbox')
-    await expect(page.getByRole('heading', { name: 'Test the matchup you actually have.' })).toBeVisible()
-    const widths = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: window.innerWidth }))
-    expect(widths.content).toBeLessThanOrEqual(widths.viewport)
-  })
+  for (const route of ['game', 'sandbox'] as const) {
+    test(`${route} fits a ${viewport.name} without horizontal scrolling`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await page.goto(`#/${route}`)
+      await expect(page.locator('h1')).toBeVisible()
+      const widths = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: window.innerWidth }))
+      expect(widths.content).toBeLessThanOrEqual(widths.viewport)
+    })
+  }
 }

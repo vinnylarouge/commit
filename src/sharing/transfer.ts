@@ -1,5 +1,5 @@
 import type { SandboxState } from '../domain/sandbox'
-import { isSandboxState } from './sandboxState'
+import { normaliseSandboxState } from './sandboxState'
 
 export type CommitMatchupFile = Readonly<{
   format: 'commit-matchup'
@@ -22,10 +22,11 @@ export const parseMatchupFile = (input: string): SandboxState => {
   if (file.format !== 'commit-matchup' || file.version !== 1 || typeof file.state !== 'object' || file.state === null) {
     throw new Error('This Commit file version is not supported.')
   }
-  if (!isSandboxState(file.state)) {
+  const state = normaliseSandboxState(file.state)
+  if (state === null) {
     throw new Error('The matchup file is incomplete.')
   }
-  return file.state
+  return state
 }
 
 export const downloadMatchup = (state: SandboxState): void => {

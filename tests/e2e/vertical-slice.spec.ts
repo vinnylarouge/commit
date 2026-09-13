@@ -1,36 +1,54 @@
 import { expect, test } from '@playwright/test'
 
-test('section 41 game loop replans at phone width and survives offline', async ({ context, page }) => {
+test('pre-game planner configures one attack and survives offline', async ({ context, page }) => {
   await page.goto('#/game')
-  await expect(page.getByText('Deathshroud Terminators')).toBeVisible()
-  await page.getByRole('button', { name: 'Find best commitment' }).click()
-  const recommendation = page.locator('.result h1')
-  await expect(recommendation).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.result .probability')).toContainText(/\d+(?:\.\d+)?%/)
-  await page.getByRole('button', { name: 'Resolve attack' }).click()
-  await expect(page.getByRole('heading', { name: 'What happened?' })).toBeVisible()
-  await page.getByRole('button', { name: '1 killed' }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'What is the least you need?' })).toBeVisible()
+  await expect(page.getByText('Turn', { exact: true })).not.toBeVisible()
+  await expect(page.getByText('CP', { exact: true })).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Next turn' })).not.toBeVisible()
+
+  await page.getByRole('radio', { name: /Shoot \+ Fight/ }).check()
+  await page.getByLabel('Models in target').fill('2')
+  await page.getByLabel('Toughness').selectOption('1')
+  await page.getByLabel('Save roll').selectOption('-1')
+  await page.getByLabel('Re-roll saves').selectOption('failed')
+  await page.getByLabel('Invulnerable save').selectOption('5')
+  await page.getByLabel('Feel No Pain').selectOption('5')
+
+  const eradicators = page.getByRole('article', { name: 'Eradicators setup' })
+  await page.getByRole('article', { name: 'Ballistus Dreadnought setup' }).getByRole('checkbox').uncheck()
+  await page.getByRole('article', { name: 'Hellblasters setup' }).getByRole('checkbox').uncheck()
+  await eradicators.getByLabel('Models attacking').fill('2')
+  await expect(eradicators.getByLabel('Shooting weapon')).toHaveValue(/melta-rifles/)
+  await expect(eradicators.getByLabel('Fight weapon')).toHaveValue(/close-combat/)
+  await eradicators.getByText('Attacker modifiers').click()
+  await eradicators.getByLabel('Hit roll').selectOption('1')
+  await eradicators.getByLabel('Wound roll').selectOption('-1')
+  await eradicators.getByLabel('Re-roll hits').selectOption('failed')
+  await eradicators.getByLabel('Re-roll wounds').selectOption('ones')
+
+  await page.getByRole('button', { name: 'Find least commitment' }).click()
   await expect(page.locator('.result h1')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText('6 wounds remaining', { exact: true })).toBeVisible()
-  await page.waitForTimeout(400)
-  await page.screenshot({
-    path: 'reports/2026-09-13-m0/section-41.png',
-    fullPage: true,
-  })
+  await expect(page.locator('.result .probability')).toContainText(/\d+(?:\.\d+)?% kill chance/)
+  await expect(page.getByText('Average from the first unit')).toBeVisible()
+  await expect(page.getByText(/80% of rolls:/)).toBeVisible()
+  await page.getByText('Details', { exact: true }).click()
+  await expect(page.locator('.metric-list')).toContainText('Shoot + Fight')
+  await expect(page.locator('.trace-list')).toContainText('Feel No Pain 5+')
+  await expect(page.locator('.trace-list')).toContainText('Hit re-rolls: failed')
 
   await page.evaluate(() => navigator.serviceWorker.ready)
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByText('Deathshroud Terminators')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What is the least you need?' })).toBeVisible()
 })
 
-test('game calculations accept a damage goal and label the answer honestly', async ({ page }) => {
+test('shoot and fight modes use their corresponding weapon picker', async ({ page }) => {
   await page.goto('#/game')
-  await page.getByRole('radio', { name: 'Deal ≥ 6 wounds' }).check()
-  await page.getByRole('button', { name: 'Find best commitment' }).click()
-  await expect(page.locator('.result h1')).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.result .probability')).toContainText('success chance')
-  await page.getByText('Details', { exact: true }).click()
-  await expect(page.locator('.metric-list')).toContainText('Deal ≥ 6 wounds')
+  const eradicators = page.getByRole('article', { name: 'Eradicators setup' })
+  await expect(eradicators.getByLabel('Shooting weapon')).toBeVisible()
+  await expect(eradicators.getByLabel('Fight weapon')).not.toBeVisible()
+  await page.getByRole('radio', { name: /^Fight/ }).check()
+  await expect(eradicators.getByLabel('Shooting weapon')).not.toBeVisible()
+  await expect(eradicators.getByLabel('Fight weapon')).toBeVisible()
 })

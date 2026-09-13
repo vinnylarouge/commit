@@ -67,7 +67,7 @@ export function App() {
 
       <nav className="bottom-nav" aria-label="Primary navigation">
         <a className={route === 'prep' ? 'active' : undefined} href="#/prep" aria-current={route === 'prep' ? 'page' : undefined}>Prep</a>
-        <a className={route === 'game' ? 'active' : undefined} href="#/game" aria-current={route === 'game' ? 'page' : undefined}>Game</a>
+        <a className={route === 'game' ? 'active' : undefined} href="#/game" aria-current={route === 'game' ? 'page' : undefined}>Plan</a>
         <a className={route === 'sandbox' ? 'active' : undefined} href="#/sandbox" aria-current={route === 'sandbox' ? 'page' : undefined}>Sandbox</a>
       </nav>
     </main>
