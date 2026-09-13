@@ -136,4 +136,16 @@ describe('damage and allocation rules', () => {
     expect(result.get(2)).toBeCloseTo(12 / 27)
     expect(result.get(3)).toBeCloseTo(8 / 27)
   })
+
+  it('applies damage reduction after rolling, to a minimum of one', () => {
+    const result = remainingWoundsDistribution(
+      3,
+      3,
+      1,
+      { kind: 'die', count: 1, sides: 3, modifier: 0 },
+      null,
+      2,
+    )
+    expect([...result]).toEqual([[2, 1]])
+  })
 })

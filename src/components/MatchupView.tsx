@@ -39,7 +39,7 @@ export function MatchupView({ myRoster, opponentRoster }: Props) {
                   <th scope="row">{attacker.name}</th>
                   {opponentRoster.units.map((target) => {
                     const cell = analysis.cells.find(({ attackerId, targetId }) => attackerId === attacker.id && targetId === target.id)
-                    return <td className="figure" key={target.id}>{cell === undefined ? '—' : oneDecimal(cell.enemyPointsPerHundredPoints)}</td>
+                    return <td className="figure" key={target.id}>{cell === undefined ? 'N/A' : oneDecimal(cell.enemyPointsPerHundredPoints)}</td>
                   })}
                 </tr>
               ))}

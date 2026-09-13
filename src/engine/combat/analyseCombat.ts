@@ -44,6 +44,7 @@ export const analyseCombat = (request: CombatRequest): CombatAnalysis => {
       instanceCount,
       weapon.damage,
       target.feelNoPain,
+      request.damageReduction,
     ),
   )
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { demoMyRoster, demoOpponentRoster } from '../domain/demoData'
-import type { GamePhase, GameSession, UnitState } from '../domain/combatState'
+import type { GameGoal, GamePhase, GameSession, UnitState } from '../domain/combatState'
 import { sessionId, type UnitId } from '../domain/ids'
 import type { Roster } from '../domain/roster'
 import { ensureDemoData } from '../persistence/bootstrap'
@@ -31,6 +31,7 @@ export const createDemoSession = (): GameSession => ({
   commandPoints: 2,
   selectedTargetId: initialTarget.id,
   selectedAttackerIds: demoMyRoster.units.slice(0, 3).map(({ id }) => id),
+  goal: { kind: 'kill' },
   units: rosterUnitStates(demoMyRoster, demoOpponentRoster),
   updatedAt: now(),
 })
@@ -44,6 +45,7 @@ type GameStore = Readonly<{
   toggleAttacker: (unitId: UnitId) => void
   setCommandPoints: (commandPoints: number) => void
   setPhase: (phase: GamePhase) => void
+  setGoal: (goal: GameGoal) => void
   resolveAttack: (attackerId: UnitId, targetId: UnitId, woundsRemaining: number) => void
   nextTurn: () => void
   startGame: (myRoster: Roster, opponentRoster: Roster) => void
@@ -73,7 +75,9 @@ export const useGameStore = create<GameStore>((set, get) => {
       try {
         await ensureDemoData()
         const stored = await db.sessions.get(sessionId('current-game'))
-        const session = stored ?? createDemoSession()
+        const session = stored === undefined
+          ? createDemoSession()
+          : { ...stored, goal: stored.goal ?? { kind: 'kill' } }
         if (stored === undefined) await db.sessions.put(session)
         set({ session, hydrated: true, persistenceError: null })
       } catch (error: unknown) {
@@ -88,13 +92,16 @@ export const useGameStore = create<GameStore>((set, get) => {
       ...session,
       selectedAttackerIds: session.selectedAttackerIds.includes(unitId)
         ? session.selectedAttackerIds.filter((id) => id !== unitId)
-        : [...session.selectedAttackerIds, unitId],
+        : session.selectedAttackerIds.length >= 6
+          ? session.selectedAttackerIds
+          : [...session.selectedAttackerIds, unitId],
     })),
     setCommandPoints: (commandPoints) => update((session) => ({
       ...session,
       commandPoints: Math.max(0, Math.floor(commandPoints)),
     })),
     setPhase: (phase) => update((session) => ({ ...session, phase })),
+    setGoal: (goal) => update((session) => ({ ...session, goal })),
     resolveAttack: (attackerId, targetId, woundsRemaining) => update((session) => ({
       ...session,
       units: {
@@ -135,6 +142,15 @@ export const useGameStore = create<GameStore>((set, get) => {
       }
       set({ session, persistenceError: null })
       persist(session)
+      void db.preferences.get('recentOpponentIds').then((stored) => {
+        const existing = Array.isArray(stored?.value)
+          ? stored.value.filter((value): value is string => typeof value === 'string')
+          : []
+        return db.preferences.put({
+          key: 'recentOpponentIds',
+          value: [opponentRoster.id, ...existing.filter((id) => id !== opponentRoster.id)].slice(0, 5),
+        })
+      }).catch(reportPersistenceError)
     },
     resetDemo: () => {
       const session = createDemoSession()

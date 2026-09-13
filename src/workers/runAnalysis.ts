@@ -1,5 +1,6 @@
 import type { UnitProfile, WeaponProfile } from '../domain/profiles'
 import { analyseCombat } from '../engine/combat/analyseCombat'
+import { probabilityOf } from '../engine/distributions/pmf'
 import { combatAction } from '../engine/optimisation/combatAction'
 import { optimiseCommitment } from '../engine/optimisation/optimise'
 import type { CommitmentAction, ResourceCost } from '../engine/optimisation/types'
@@ -67,6 +68,7 @@ export const runAnalysis = (
       rulesTrace: analysis.rulesTrace,
       remainingWounds: [...analysis.remainingWounds],
       commandPoints: 0,
+      goalProbability: probabilityOf(analysis.remainingWounds, (remaining) => remaining <= request.goalWoundsRemaining),
     })
     if (request.commandPoints > 0 && index === 0) {
       const boosted = analyseCombat({
@@ -84,6 +86,7 @@ export const runAnalysis = (
         rulesTrace: boosted.rulesTrace,
         remainingWounds: [...boosted.remainingWounds],
         commandPoints: 1,
+        goalProbability: probabilityOf(boosted.remainingWounds, (remaining) => remaining <= request.goalWoundsRemaining),
       })
     }
   })
@@ -91,7 +94,7 @@ export const runAnalysis = (
   const optimisation = optimiseCommitment({
     initialState: request.targetWoundsRemaining,
     actions,
-    goal: (remainingWounds) => remainingWounds === 0,
+    goal: (remainingWounds) => remainingWounds <= request.goalWoundsRemaining,
     requiredConfidence: request.requiredConfidence,
     commandPointsAvailable: request.commandPoints,
     maxDepth: 3,
@@ -102,6 +105,10 @@ export const runAnalysis = (
     optimisation,
     attacks: summaries,
     alternatives: optimisation.paretoFrontier,
-    unsupportedRules: [...new Set(attackers.flatMap(({ unsupportedRules }) => unsupportedRules))],
+    unsupportedRules: [...new Set([
+      ...attackers.flatMap(({ unsupportedRules }) => unsupportedRules),
+      ...request.targetUnsupportedRules,
+    ])],
+    goalLabel: request.goalLabel,
   }
 }

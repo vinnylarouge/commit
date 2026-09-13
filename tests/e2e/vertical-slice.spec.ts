@@ -24,3 +24,13 @@ test('section 41 game loop replans at phone width and survives offline', async (
   await page.reload()
   await expect(page.getByText('Deathshroud Terminators')).toBeVisible()
 })
+
+test('game calculations accept a damage goal and label the answer honestly', async ({ page }) => {
+  await page.goto('#/game')
+  await page.getByRole('radio', { name: 'Deal ≥ 6 wounds' }).check()
+  await page.getByRole('button', { name: 'Find best commitment' }).click()
+  await expect(page.locator('.result h1')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.result .probability')).toContainText('success chance')
+  await page.getByText('Details', { exact: true }).click()
+  await expect(page.locator('.metric-list')).toContainText('Deal ≥ 6 wounds')
+})

@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect } from 'react'
 import { GameScreen } from './GameScreen'
 import { PrepScreen } from './PrepScreen'
+import { SandboxScreen } from './SandboxScreen'
 import { useRoute } from './router'
 import { useGameStore } from '../stores/game'
-import { applyTheme, setPreference, usePreferences, type Theme } from '../stores/preferences'
+import { applyTheme, hydratePreferences, setPreference, usePreferences, type Theme } from '../stores/preferences'
 import { useRosterStore } from '../stores/rosters'
 
 const themeOptions: ReadonlyArray<Readonly<{ value: Theme; label: string }>> = [
@@ -14,12 +15,12 @@ const themeOptions: ReadonlyArray<Readonly<{ value: Theme; label: string }>> = [
 
 export function App() {
   const route = useRoute()
-  const { theme } = usePreferences()
+  const { theme, detail } = usePreferences()
   const hydrate = useGameStore((state) => state.hydrate)
   const hydrateRosters = useRosterStore((state) => state.hydrate)
 
   useEffect(() => {
-    void Promise.all([hydrate(), hydrateRosters()])
+    void Promise.all([hydrate(), hydrateRosters(), hydratePreferences()])
   }, [hydrate, hydrateRosters])
 
   useLayoutEffect(() => {
@@ -32,8 +33,9 @@ export function App() {
 
   return (
     <main className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
-        <a className="wordmark" href="#/game" aria-label="Commit home">COMMIT</a>
+        <a className="wordmark" href="#/game" aria-label="Commit home" translate="no">COMMIT</a>
         <button className="menu-button" type="button" popoverTarget="settings" aria-label="Settings">•••</button>
       </header>
 
@@ -52,15 +54,16 @@ export function App() {
             </label>
           ))}
         </fieldset>
+        <fieldset className="field-group settings-group">
+          <legend className="eyebrow">Answer detail</legend>
+          <label className="choice-line"><input type="radio" name="detail" checked={detail === 'simple'} onChange={() => setPreference('detail', 'simple')} /><span>Simple first</span></label>
+          <label className="choice-line"><input type="radio" name="detail" checked={detail === 'detailed'} onChange={() => setPreference('detail', 'detailed')} /><span>Keep details open</span></label>
+        </fieldset>
       </div>
 
-      {route === 'game' ? <GameScreen /> : route === 'prep' ? <PrepScreen /> : (
-        <section className="route-placeholder">
-          <p className="eyebrow">Sandbox</p>
-          <h1>Test any matchup.</h1>
-          <p>Detailed profile controls arrive in the final deployment.</p>
-        </section>
-      )}
+      <div id="main-content" tabIndex={-1}>
+        {route === 'game' ? <GameScreen /> : route === 'prep' ? <PrepScreen /> : <SandboxScreen />}
+      </div>
 
       <nav className="bottom-nav" aria-label="Primary navigation">
         <a className={route === 'prep' ? 'active' : undefined} href="#/prep" aria-current={route === 'prep' ? 'page' : undefined}>Prep</a>

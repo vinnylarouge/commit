@@ -11,6 +11,9 @@ export type OptimiseAnalysisRequest = Readonly<{
   selectedAttackerIds: ReadonlyArray<UnitId>
   requiredConfidence: number
   commandPoints: number
+  goalWoundsRemaining: number
+  goalLabel: string
+  targetUnsupportedRules: ReadonlyArray<string>
 }>
 
 export type AnalysisRequest = OptimiseAnalysisRequest
@@ -25,6 +28,7 @@ export type AttackSummary = Readonly<{
   rulesTrace: ReadonlyArray<string>
   remainingWounds: ReadonlyArray<readonly [number, number]>
   commandPoints: number
+  goalProbability: number
 }>
 
 export type CommitmentAnalysis = Readonly<{
@@ -32,6 +36,7 @@ export type CommitmentAnalysis = Readonly<{
   attacks: ReadonlyArray<AttackSummary>
   alternatives: ReadonlyArray<PolicyCandidate<number>>
   unsupportedRules: ReadonlyArray<string>
+  goalLabel: string
 }>
 
 export type AnalysisResponse =

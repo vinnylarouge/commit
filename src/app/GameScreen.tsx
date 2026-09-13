@@ -12,6 +12,8 @@ import { setPreference, usePreferences } from '../stores/preferences'
 import { useRosterStore } from '../stores/rosters'
 import { analyseCommitment } from '../workers/client'
 
+const gamePhases = ['command', 'movement', 'shooting', 'charge', 'fight'] as const
+
 type AnalysisState =
   | Readonly<{ kind: 'idle' }>
   | Readonly<{ kind: 'pending'; completed: number; total: number }>
@@ -26,6 +28,8 @@ export function GameScreen() {
   const toggleAttacker = useGameStore((state) => state.toggleAttacker)
   const resolveAttack = useGameStore((state) => state.resolveAttack)
   const setCommandPoints = useGameStore((state) => state.setCommandPoints)
+  const setGoal = useGameStore((state) => state.setGoal)
+  const setPhase = useGameStore((state) => state.setPhase)
   const nextTurn = useGameStore((state) => state.nextTurn)
   const [analysis, setAnalysis] = useState<AnalysisState>({ kind: 'idle' })
   const [resolving, setResolving] = useState(false)
@@ -46,6 +50,16 @@ export function GameScreen() {
     }
     const wounds = game.units[selectedTarget.id]?.woundsRemaining
       ?? selectedTarget.models * selectedTarget.woundsPerModel
+    const goalWoundsRemaining = game.goal.kind === 'kill'
+      ? 0
+      : game.goal.kind === 'remove-models'
+        ? Math.max(0, wounds - game.goal.count * selectedTarget.woundsPerModel)
+        : Math.max(0, wounds - game.goal.amount)
+    const goalLabel = game.goal.kind === 'kill'
+      ? 'Kill unit'
+      : game.goal.kind === 'remove-models'
+        ? `Remove ≥ ${game.goal.count} models`
+        : `Deal ≥ ${game.goal.amount} wounds`
     setResolving(false)
     setAnalysis({ kind: 'pending', completed: 0, total: game.selectedAttackerIds.length })
     try {
@@ -57,6 +71,9 @@ export function GameScreen() {
         selectedAttackerIds: game.selectedAttackerIds,
         requiredConfidence: confidence / 100,
         commandPoints: game.commandPoints,
+        goalWoundsRemaining,
+        goalLabel,
+        targetUnsupportedRules: selectedTarget.unsupportedRules,
       }, (completed, total) => setAnalysis({ kind: 'pending', completed, total }))
       setAnalysis({ kind: 'success', recommendation: presentCommitment(result) })
     } catch (error: unknown) {
@@ -75,9 +92,12 @@ export function GameScreen() {
 
   return (
     <>
+      <h1 className="sr-only">Current game</h1>
       <section className="session-strip" aria-label="Current game">
         <span>Turn <strong className="figure">{session.turn}</strong></span>
-        <span className="phase-pill">{session.phase}</span>
+        <select className="phase-pill" aria-label="Phase" value={session.phase} onChange={(event) => setPhase(event.currentTarget.value as GameSession['phase'])}>
+          {gamePhases.map((phase) => <option key={phase} value={phase}>{phase}</option>)}
+        </select>
         <label className="cp-control">
           <span>CP</span>
           <input
@@ -126,8 +146,16 @@ export function GameScreen() {
         <fieldset className="field-group">
           <legend className="eyebrow">Goal</legend>
           <label className="choice-line">
-            <input type="radio" name="goal" defaultChecked />
+            <input type="radio" name="goal" checked={session.goal.kind === 'kill'} onChange={() => setGoal({ kind: 'kill' })} />
             <span>Kill unit</span>
+          </label>
+          <label className="choice-line">
+            <input type="radio" name="goal" checked={session.goal.kind === 'remove-models'} disabled={target.models < 2} onChange={() => setGoal({ kind: 'remove-models', count: Math.min(2, target.models) })} />
+            <span>Remove ≥ 2 models</span>
+          </label>
+          <label className="choice-line">
+            <input type="radio" name="goal" checked={session.goal.kind === 'deal-damage'} onChange={() => setGoal({ kind: 'deal-damage', amount: Math.min(6, targetWounds) })} />
+            <span>Deal ≥ {Math.min(6, targetWounds)} wounds</span>
           </label>
         </fieldset>
 
@@ -152,15 +180,17 @@ export function GameScreen() {
           <div className="attacker-list">
             {availableAttackers.map((attacker) => (
               <label className="choice-line" key={attacker.id}>
-                <input
-                  type="checkbox"
-                  checked={session.selectedAttackerIds.includes(attacker.id)}
-                  onChange={() => toggleAttacker(attacker.id)}
+                  <input
+                    type="checkbox"
+                    checked={session.selectedAttackerIds.includes(attacker.id)}
+                    disabled={!session.selectedAttackerIds.includes(attacker.id) && session.selectedAttackerIds.length >= 6}
+                    onChange={() => toggleAttacker(attacker.id)}
                 />
                 <span>{attacker.name}</span>
               </label>
             ))}
           </div>
+          <p className="empty-copy">Choose up to six attackers. Activated units disappear until the next turn.</p>
           {availableAttackers.length === 0 ? <p className="empty-copy">All units have activated this turn.</p> : null}
         </fieldset>
 

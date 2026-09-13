@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { RecommendationView } from '../domain/plans'
+import { usePreferences } from '../stores/preferences'
 
 type Props = Readonly<{
   recommendation: RecommendationView
@@ -7,7 +8,9 @@ type Props = Readonly<{
 }>
 
 export function RecommendationCard({ recommendation, onResolve }: Props) {
+  const { detail } = usePreferences()
   const heading = useRef<HTMLHeadingElement>(null)
+  const [detailsOpen, setDetailsOpen] = useState(detail === 'detailed')
 
   useLayoutEffect(() => {
     heading.current?.focus({ preventScroll: true })
@@ -20,7 +23,7 @@ export function RecommendationCard({ recommendation, onResolve }: Props) {
       <h1 ref={heading} tabIndex={-1}>{recommendation.headline}</h1>
       <p className="probability">
         <strong className="figure">{recommendation.headlineProbability}%</strong>
-        {' '}kill chance, {recommendation.headlineWord}
+        {' '}{recommendation.probabilityLabel}, {recommendation.headlineWord}
       </p>
       {recommendation.continuation === null ? null : (
         <div className="continuation">
@@ -34,10 +37,10 @@ export function RecommendationCard({ recommendation, onResolve }: Props) {
       {onResolve === undefined ? null : (
         <button className="secondary-action" type="button" onClick={onResolve}>Resolve attack</button>
       )}
-      <details>
+      <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
         <summary>Details</summary>
         <dl className="metric-list">
-          <div><dt>Goal</dt><dd className="figure">Kill at ≥ {recommendation.requiredConfidence}%</dd></div>
+          <div><dt>Goal</dt><dd>{recommendation.goalLabel} at ≥ <span className="figure">{recommendation.requiredConfidence}%</span></dd></div>
           <div><dt>Total success</dt><dd className="figure">{recommendation.totalProbability}%</dd></div>
           <div><dt>Expected activations</dt><dd className="figure">{recommendation.expectedActivations.toFixed(2)}</dd></div>
           <div><dt>Expected CP</dt><dd className="figure">{recommendation.expectedCommandPoints.toFixed(2)}</dd></div>

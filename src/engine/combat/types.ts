@@ -8,6 +8,7 @@ export type CombatRequest = Readonly<{
   weapon: WeaponProfile
   target: TargetProfile
   targetWoundsRemaining?: number
+  damageReduction?: number
 }>
 
 export type AnalysisMethod =

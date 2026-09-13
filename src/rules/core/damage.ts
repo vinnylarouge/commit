@@ -42,7 +42,11 @@ export const remainingWoundsDistribution = (
   damageInstances: number,
   damage: DiceExpr,
   feelNoPain: number | null,
+  damageReduction = 0,
 ): PMF<number> => {
+  if (!Number.isInteger(damageReduction) || damageReduction < 0) {
+    throw new RangeError('Damage reduction must be a non-negative integer')
+  }
   const rawDamage = evaluateDice(damage)
   let remaining = pointMass(initialWounds)
 
@@ -50,7 +54,7 @@ export const remainingWoundsDistribution = (
     remaining = flatMapDistribution(remaining, (currentWounds) =>
       flatMapDistribution(rawDamage, (rolledDamage) =>
         mapDistribution(
-          damageAfterFeelNoPain(rolledDamage, feelNoPain),
+          damageAfterFeelNoPain(rolledDamage === 0 ? 0 : Math.max(1, rolledDamage - damageReduction), feelNoPain),
           (sufferedDamage) => allocateDamage(currentWounds, woundsPerModel, sufferedDamage),
         ),
       ),

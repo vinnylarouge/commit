@@ -7,6 +7,12 @@
     <link rel="icon" href="/commit/favicon.ico" sizes="any" />
     <link rel="icon" href="/commit/commit.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/commit/apple-touch-icon-180x180.png" />
+    <script>
+      try {
+        const saved = JSON.parse(localStorage.getItem('commit.preferences') || '{}')
+        if (saved.theme === 'light' || saved.theme === 'dark') document.documentElement.dataset.theme = saved.theme
+      } catch {}
+    </script>
     <title>Commit</title>
   </head>
   <body>

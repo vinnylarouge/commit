@@ -1,7 +1,7 @@
 import { rosterId, unitId, weaponId } from '../domain/ids'
 import type { UnitProfile, WeaponProfile } from '../domain/profiles'
 import type { Roster } from '../domain/roster'
-import type { DiceExpr } from '../engine/dice/dice'
+import { parseDice } from '../domain/diceText'
 import type { ParseIssue, ParseResult, RosterParser } from './types'
 
 const slug = (value: string): string => value
@@ -22,20 +22,6 @@ const save = (line: string, labels: ReadonlyArray<string>): number | null => {
   return match?.[1] === undefined ? null : Number(match[1])
 }
 
-const dice = (source: string): DiceExpr | null => {
-  const cleaned = source.trim().toUpperCase()
-  const constant = cleaned.match(/^\d+$/)
-  if (constant !== null) return { kind: 'constant', value: Number(constant[0]) }
-  const die = cleaned.match(/^(\d*)D(\d+)([+-]\d+)?$/)
-  if (die === null) return null
-  return {
-    kind: 'die',
-    count: die[1] === '' ? 1 : Number(die[1]),
-    sides: Number(die[2]),
-    modifier: die[3] === undefined ? 0 : Number(die[3]),
-  }
-}
-
 type UnitDraft = {
   name: string
   points: number | null
@@ -43,8 +29,10 @@ type UnitDraft = {
   toughness: number | null
   armourSave: number | null
   invulnerableSave: number | null
+  feelNoPain: number | null
   woundsPerModel: number | null
   weapons: Array<WeaponProfile>
+  unsupportedRules: Array<string>
 }
 
 const unitLine = (line: string): Readonly<{ name: string; points: number | null; models: number | null }> | null => {
@@ -64,8 +52,8 @@ const weaponLine = (line: string, unitIndex: number): Readonly<{
   const name = line.match(/^([^:]+):/i)?.[1]?.trim()
   const attacksSource = line.match(/(?:^|[,;\s])(?:A|Attacks)\s*[:=]?\s*(\d+|\d*D\d+(?:[+-]\d+)?)/i)?.[1]
   if (name === undefined || attacksSource === undefined) return null
-  const parsedAttacks = dice(attacksSource)
-  const parsedDamage = dice(line.match(/(?:^|[,;\s])(?:D|Damage)\s*[:=]?\s*(\d+|\d*D\d+(?:[+-]\d+)?)/i)?.[1] ?? '')
+  const parsedAttacks = parseDice(attacksSource)
+  const parsedDamage = parseDice(line.match(/(?:^|[,;\s])(?:D|Damage)\s*[:=]?\s*(\d+|\d*D\d+(?:[+-]\d+)?)/i)?.[1] ?? '')
   const skill = save(line, ['BS', 'WS', 'Skill'])
   const strength = integer(line, ['S', 'Strength'])
   const ap = line.match(/(?:^|[,;\s])AP\s*[:=]?\s*(-?\d+)/i)?.[1]
@@ -121,11 +109,11 @@ const canonicalUnit = (
     armourSave: values.armourSave ?? 4,
     invulnerableSave: values.invulnerableSave,
     woundsPerModel: values.woundsPerModel ?? 1,
-    feelNoPain: null,
+    feelNoPain: values.feelNoPain,
     keywords: [],
     weapons: draft.weapons,
     abilities: [],
-    unsupportedRules: [],
+    unsupportedRules: draft.unsupportedRules,
   }
 }
 
@@ -155,8 +143,10 @@ export const plainTextRosterParser: RosterParser = {
           toughness: null,
           armourSave: null,
           invulnerableSave: null,
+          feelNoPain: null,
           woundsPerModel: null,
           weapons: [],
+          unsupportedRules: [],
         }
         drafts.push(current)
         continue
@@ -169,8 +159,10 @@ export const plainTextRosterParser: RosterParser = {
           toughness: null,
           armourSave: null,
           invulnerableSave: null,
+          feelNoPain: null,
           woundsPerModel: null,
           weapons: [],
+          unsupportedRules: [],
         }
         drafts.push(current)
         issues.push({ unitIndex: drafts.length - 1, field: 'name', message: `Check unrecognised entry: ${line}` })
@@ -182,17 +174,28 @@ export const plainTextRosterParser: RosterParser = {
         issues.push(...parsedWeapon.issues)
         continue
       }
-      current.models = integer(line, ['Models?', 'Count']) ?? current.models
-      current.toughness = integer(line, ['T', 'Toughness']) ?? current.toughness
-      current.armourSave = save(line, ['Sv', 'Save']) ?? current.armourSave
-      current.invulnerableSave = save(line, ['Inv', 'Invulnerable']) ?? current.invulnerableSave
-      current.woundsPerModel = integer(line, ['W', 'Wounds?']) ?? current.woundsPerModel
+      const models = integer(line, ['Models?', 'Count'])
+      const toughness = integer(line, ['T', 'Toughness'])
+      const armourSave = save(line, ['Sv', 'Save'])
+      const invulnerableSave = save(line, ['Inv', 'Invulnerable'])
+      const feelNoPain = save(line, ['FNP', 'Feel No Pain'])
+      const woundsPerModel = integer(line, ['W', 'Wounds?'])
+      current.models = models ?? current.models
+      current.toughness = toughness ?? current.toughness
+      current.armourSave = armourSave ?? current.armourSave
+      current.invulnerableSave = invulnerableSave ?? current.invulnerableSave
+      current.feelNoPain = feelNoPain ?? current.feelNoPain
+      current.woundsPerModel = woundsPerModel ?? current.woundsPerModel
+      if ([models, toughness, armourSave, invulnerableSave, feelNoPain, woundsPerModel].every((value) => value === null)) {
+        current.unsupportedRules.push(line)
+        issues.push({ unitIndex: drafts.length - 1, field: 'unsupportedRules', message: `Check unsupported rule: ${line}` })
+      }
     }
 
     if (drafts.length === 0) {
       drafts.push({
         name: 'Unknown unit', points: null, models: null, toughness: null,
-        armourSave: null, invulnerableSave: null, woundsPerModel: null, weapons: [],
+        armourSave: null, invulnerableSave: null, feelNoPain: null, woundsPerModel: null, weapons: [], unsupportedRules: [],
       })
       issues.push({ unitIndex: 0, field: 'name', message: 'No unit heading was recognised. Edit this placeholder.' })
     }

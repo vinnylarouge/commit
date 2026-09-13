@@ -8,12 +8,14 @@ export type RecommendationView = Readonly<{
   headline: string
   headlineProbability: number
   headlineWord: string
+  probabilityLabel: string
   continuation: string | null
   totalProbability: number
   totalWord: string
   resourceAdvice: string
   reason: string
   requiredConfidence: number
+  goalLabel: string
   expectedActivations: number
   expectedCommandPoints: number
   expectedOverkill: number
@@ -54,7 +56,7 @@ export const presentCommitment = (analysis: CommitmentAnalysis): RecommendationV
   const first = plan.kind === 'act' ? plan.action : null
   const attack = attackFor(candidate, analysis.attacks)
   const headlineProbability = result.kind === 'satisfied'
-    ? percentage(attack?.killProbability ?? candidate.successProbability)
+    ? percentage(attack?.goalProbability ?? candidate.successProbability)
     : percentage(candidate.successProbability)
   const totalProbability = percentage(candidate.successProbability)
   const expectedCommandPoints = candidate.expectedCost.commandPoints
@@ -67,6 +69,7 @@ export const presentCommitment = (analysis: CommitmentAnalysis): RecommendationV
       : first === null ? 'No attack needed' : `${first.name} first`,
     headlineProbability,
     headlineWord: probabilityWord(headlineProbability),
+    probabilityLabel: analysis.goalLabel === 'Kill unit' ? 'kill chance' : 'success chance',
     continuation: firstContinuation(plan),
     totalProbability,
     totalWord: probabilityWord(totalProbability),
@@ -79,6 +82,7 @@ export const presentCommitment = (analysis: CommitmentAnalysis): RecommendationV
         ? 'This action reaches the requested confidence alone.'
         : 'Continue only if the target survives, preserving the later activation when it succeeds.',
     requiredConfidence: percentage(result.requiredConfidence),
+    goalLabel: analysis.goalLabel,
     expectedActivations: candidate.expectedCost.activations,
     expectedCommandPoints,
     expectedOverkill: candidate.expectedCost.expectedOverkill,

@@ -37,4 +37,12 @@ describe('plain-text roster adapter', () => {
       'models', 'toughness', 'armourSave', 'woundsPerModel', 'weapons',
     ]))
   })
+
+  it('preserves rules it cannot model and parses Feel No Pain', () => {
+    const result = parseRoster(`Test unit (100 points)\nModels 1, T 5, Sv 3+, W 4, FNP 5+\nQuantum shield: halve incoming damage`)
+
+    expect(result.roster.units[0]?.feelNoPain).toBe(5)
+    expect(result.roster.units[0]?.unsupportedRules).toContain('Quantum shield: halve incoming damage')
+    expect(result.issues).toContainEqual(expect.objectContaining({ field: 'unsupportedRules' }))
+  })
 })

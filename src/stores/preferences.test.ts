@@ -26,7 +26,7 @@ describe('preferences store', () => {
     async (raw) => {
       localStorage.setItem('commit.preferences', raw)
       const { usePreferences } = await loadStore()
-      expect(renderHook(usePreferences).result.current).toEqual({ theme: 'system', confidence: 80 })
+      expect(renderHook(usePreferences).result.current).toEqual({ theme: 'system', confidence: 80, detail: 'simple' })
     },
   )
 
@@ -37,7 +37,7 @@ describe('preferences store', () => {
     expect(result.current.theme).toBe('dark')
 
     const second = await loadStore()
-    expect(renderHook(second.usePreferences).result.current).toEqual({ theme: 'dark', confidence: 80 })
+    expect(renderHook(second.usePreferences).result.current).toEqual({ theme: 'dark', confidence: 80, detail: 'simple' })
   })
 
   it('applies the theme as one html attribute and clears it for system', async () => {
